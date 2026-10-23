@@ -389,7 +389,16 @@ export class Game {
     const ps = this.players;
     const winners = ps.filter((p) => p.won > 0);
     this.winCards = new Set();
-    if (this.showdownDone) for (const w of winners) for (const c of this.bestFive(w)) this.winCards.add(c);
+    if (this.showdownDone && winners.length) {
+      // Das Board zeigt nur die stärkste Gewinnerhand; weitere Gewinner (Nebenpot) markieren nur ihre eigenen Hole Cards.
+      const top = winners.reduce((a, b) => (b.score > a.score ? b : a));
+      for (const c of this.bestFive(top)) this.winCards.add(c);
+      for (const w of winners) {
+        if (w === top) continue;
+        const five = this.bestFive(w);
+        for (const c of w.hole) if (five.includes(c)) this.winCards.add(c);
+      }
+    }
     this.message = winners
       .map((w) => {
         const head = w.human ? `Du gewinnst ${w.won}` : `${w.name} gewinnt ${w.won}`;
