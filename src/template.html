@@ -1,0 +1,270 @@
+<title>Hold'em Tisch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  /* Layout: ein Bildschirm. Kopfzeile, Filztisch (drei Gegner oben, Board und Pot in der Mitte, die eigene Hand unten), Aktionsleiste. */
+  :root {
+    --ink: #0a110e;
+    --panel: #111b16;
+    --line: #26372d;
+    --text: #e9efe9;
+    --muted: #93a79b;
+    --felt-hi: #17694b;
+    --felt-mid: #0f4c37;
+    --felt-lo: #0a3326;
+    --brass: #d3a64a;
+    --brass-dim: #8e6f2e;
+    --brass-ink: #1c1405;
+    --card: #f6f4ee;
+    --card-ink: #15191a;
+    --card-red: #c4302b;
+    --back: #5a1f2b;
+    --back-hi: #7a2c3a;
+    --good: #6fdc98;
+    --bad: #f08a76;
+    --chip-5: #c0392f;
+    --chip-25: #33a468;
+    --chip-100: #232a2d;
+    --chip-500: #7a54b8;
+    --chip-1000: #d8aa3e;
+    --font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+    --font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font: 14px/1.35 var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, .sw input:focus-visible + .knob { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .app {
+    height: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-block: 10px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  /* Kopfzeile */
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; }
+  .bar h1 { margin: 0; font: 400 24px/1 var(--font-display); letter-spacing: .01em; }
+  .sub { margin-top: 5px; font: 500 11px var(--font-mono); color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+  .sw { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); cursor: pointer; position: relative; user-select: none; }
+  .sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .knob { width: 34px; height: 20px; border-radius: 10px; background: #1c2a23; border: 1px solid var(--line); position: relative; transition: background .15s; flex: none; }
+  .knob::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+  .sw input:checked + .knob { background: var(--brass-dim); border-color: var(--brass); }
+  .sw input:checked + .knob::after { transform: translateX(14px); background: var(--card); }
+
+  /* Tisch */
+  .tablewrap { position: relative; flex: 1; min-height: 0; }
+  .table {
+    height: 100%;
+    overflow: auto;
+    border-radius: 26px;
+    padding: 12px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 10px;
+    background: radial-gradient(120% 90% at 50% 38%, var(--felt-hi) 0%, var(--felt-mid) 55%, var(--felt-lo) 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 0 70px rgba(0,0,0,.45), 0 0 0 1px var(--brass-dim);
+  }
+
+  .opps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .seat {
+    min-width: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 4px 6px;
+    border-radius: 14px;
+    background: rgba(0,0,0,.24);
+    border: 1px solid rgba(255,255,255,.08);
+    transition: opacity .2s, border-color .2s;
+  }
+  .seat.turn, .me.turn { border-color: var(--brass); box-shadow: 0 0 0 2px rgba(211,166,74,.35); }
+  .seat.folded, .me.folded { opacity: .5; }
+  .seat.out { opacity: .3; }
+  .seat.winner, .me.winner { border-color: var(--good); background: rgba(111,220,152,.12); }
+
+  .nm { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 14px; }
+  .ds { font-size: 10px; color: var(--muted); letter-spacing: .03em; }
+  .stk { font: 600 13px var(--font-mono); color: var(--brass); font-variant-numeric: tabular-nums; }
+  .tg { min-height: 17px; font: 600 12px var(--font-body); color: var(--brass); text-align: center; }
+  .winner .tg { color: var(--good); }
+  .hl { min-height: 14px; font-size: 11px; color: var(--text); text-align: center; opacity: .85; }
+  .bt { min-height: 24px; display: flex; align-items: flex-end; justify-content: center; gap: 6px; font: 600 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .dbtn { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--card); color: var(--card-ink); font: 700 10px var(--font-body); }
+
+  .seat .cards { display: flex; gap: 3px; min-height: 53px; margin-block: 3px; }
+
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; min-width: 0; }
+  .street { font: 600 11px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--brass); min-height: 14px; }
+  .board { display: flex; gap: 6px; justify-content: center; }
+  .slot { --cw: min(56px, 15.5vw); width: var(--cw); height: calc(var(--cw) * 1.4); border-radius: 7px; border: 1px dashed rgba(255,255,255,.16); flex: none; }
+  .pot { display: flex; align-items: flex-end; gap: 10px; min-height: 26px; }
+  .pot .amt { font: 600 15px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .msg { min-height: 20px; max-width: 100%; text-align: center; font-size: 13px; color: var(--text); text-wrap: balance; }
+
+  .me {
+    display: flex; justify-content: center; align-items: center; gap: 16px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: rgba(0,0,0,.24);
+    border: 1px solid rgba(255,255,255,.08);
+    transition: opacity .2s;
+  }
+  .me .cards { display: flex; gap: 6px; min-height: 95px; align-items: center; }
+  .me-info { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+  .me-info .nm { font-size: 15px; }
+  .me-info .stk { font-size: 19px; }
+  .me-info .tg { text-align: left; }
+  .me-info .bt { justify-content: flex-start; }
+  .me-info .hl { text-align: left; font-size: 12px; }
+  .eq { min-height: 16px; font: 500 12px var(--font-mono); color: var(--muted); }
+
+  /* Karten */
+  .card {
+    --cw: 54px;
+    position: relative; flex: none;
+    width: var(--cw); height: calc(var(--cw) * 1.4);
+    border-radius: calc(var(--cw) * .12);
+    background: var(--card); color: var(--card-ink);
+    box-shadow: 0 2px 6px rgba(0,0,0,.45);
+    font-family: var(--font-display);
+  }
+  .card.sm { --cw: 38px; }
+  .card.md { --cw: min(56px, 15.5vw); }
+  .card.lg { --cw: 68px; }
+  .card.red { color: var(--card-red); }
+  .card i, .card b { font-style: normal; font-weight: 400; position: absolute; line-height: 1; }
+  .card .rk { left: 9%; top: 5%; font-size: calc(var(--cw) * .36); }
+  .card .st { left: 10%; top: calc(var(--cw) * .42); font-size: calc(var(--cw) * .26); font-family: var(--font-body); }
+  .card .big { right: 9%; bottom: 6%; font-size: calc(var(--cw) * .6); font-family: var(--font-body); }
+  .card.back {
+    background: repeating-linear-gradient(45deg, var(--back) 0 4px, var(--back-hi) 4px 8px);
+    box-shadow: inset 0 0 0 calc(var(--cw) * .07) var(--card), 0 2px 6px rgba(0,0,0,.45);
+  }
+  .deal { animation: deal .28s ease-out both; }
+  .card.hi { box-shadow: 0 0 0 3px #ffd54a, 0 0 14px 3px rgba(255,213,74,.8); transform: translateY(-5px); z-index: 1; }
+  .card.dim { opacity: .35; }
+  @keyframes deal { from { opacity: 0; transform: translateY(-14px) scale(.96); } }
+
+  /* Chips */
+  .chips { display: inline-flex; align-items: flex-end; gap: 2px; }
+  .col { position: relative; display: block; width: 20px; }
+  .chip { position: absolute; left: 0; width: 20px; height: 11px; border-radius: 50%; border: 2px dashed rgba(255,255,255,.78); box-shadow: 0 1.5px 0 rgba(0,0,0,.5); }
+  .c5 { background: var(--chip-5); }
+  .c25 { background: var(--chip-25); }
+  .c100 { background: var(--chip-100); }
+  .c500 { background: var(--chip-500); }
+  .c1000 { background: var(--chip-1000); }
+
+  /* Aktionsleiste */
+  .dock { flex: none; display: grid; gap: 8px; padding: 10px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); }
+  .dock-status { min-height: 18px; font-size: 12px; color: var(--muted); text-align: center; }
+  .raise { display: grid; gap: 8px; }
+  .slider-row { display: grid; grid-template-columns: 38px 1fr 38px 56px auto; align-items: center; gap: 8px; }
+  .slider-row input[type=range] { width: 100%; accent-color: var(--brass); margin: 0; }
+  .raise-out { font: 600 15px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--brass); }
+  .presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .btn { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: #1a2821; font-weight: 600; font-size: 15px; cursor: pointer; padding: 0 8px; white-space: nowrap; }
+  .btn.sm { height: 34px; font-size: 12px; border-radius: 9px; }
+  .btn.round { height: 38px; width: 38px; padding: 0; font-size: 18px; border-radius: 10px; }
+  .btn:hover:not(:disabled) { background: #22352b; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+  .btn.primary:hover:not(:disabled) { background: #e0b55a; }
+  .btn.fold { color: var(--bad); }
+  .acts { display: grid; grid-template-columns: 1fr 1.2fr 1.4fr; gap: 8px; }
+  .nextrow { display: grid; }
+
+  /* Ende */
+  .over { position: absolute; inset: 0; border-radius: 26px; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; padding: 24px; background: rgba(6,14,10,.84); }
+  .over h2 { margin: 0; font: 400 32px/1.1 var(--font-display); text-wrap: balance; }
+  .over p { margin: 0; color: var(--muted); }
+  .over .btn { padding: 0 28px; }
+
+  @media (max-width: 380px) {
+    .me { gap: 10px; }
+    .me .card.lg { --cw: 60px; }
+    .me .cards { min-height: 84px; }
+    .slider-row { grid-template-columns: 34px 1fr 34px 52px auto; gap: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .deal { animation: none; }
+    .knob, .knob::after, .seat, .me { transition: none; }
+  }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div>
+      <h1>Hold'em Tisch</h1>
+      <div class="sub"><span id="blinds">Blinds 10/20</span> · <span id="handno"></span></div>
+    </div>
+    <label class="sw">
+      <input type="checkbox" id="eqToggle">
+      <span class="knob" aria-hidden="true"></span>
+      <span>Gewinnchance</span>
+    </label>
+  </header>
+
+  <div class="tablewrap">
+    <main class="table" id="table">
+      <section class="opps" id="opps" aria-label="Gegner"></section>
+      <section class="center" aria-label="Tisch">
+        <div class="street" id="street"></div>
+        <div class="board" id="board"></div>
+        <div class="pot" id="pot"></div>
+        <div class="msg" id="msg" aria-live="polite"></div>
+      </section>
+      <section class="me" id="me" aria-label="Deine Hand"></section>
+    </main>
+    <div class="over" id="over" hidden>
+      <h2 id="overTitle"></h2>
+      <p id="overSub"></p>
+      <button class="btn primary" id="bNew" type="button">Neues Spiel</button>
+    </div>
+  </div>
+
+  <footer class="dock">
+    <div class="dock-status" id="dockStatus" aria-live="polite"></div>
+    <div class="raise" id="raisePanel" hidden>
+      <div class="slider-row">
+        <button class="btn round" id="minus" type="button" aria-label="Einsatz verringern">−</button>
+        <input type="range" id="slider" aria-label="Einsatz">
+        <button class="btn round" id="plus" type="button" aria-label="Einsatz erhöhen">+</button>
+        <span class="raise-out" id="raiseOut"></span>
+        <button class="btn round" id="bClose" type="button" aria-label="Schließen">×</button>
+      </div>
+      <div class="presets" id="presets">
+        <button class="btn sm" type="button" data-p="min">Min</button>
+        <button class="btn sm" type="button" data-p="0.5">½ Pot</button>
+        <button class="btn sm" type="button" data-p="0.75">¾ Pot</button>
+        <button class="btn sm" type="button" data-p="1">Pot</button>
+        <button class="btn sm" type="button" data-p="max">All-in</button>
+      </div>
+    </div>
+    <div class="acts" id="acts">
+      <button class="btn fold" id="bFold" type="button">Fold</button>
+      <button class="btn" id="bCall" type="button">Call</button>
+      <button class="btn primary" id="bRaise" type="button">Raise</button>
+    </div>
+    <div class="nextrow" id="nextRow" hidden>
+      <button class="btn primary" id="bNext" type="button">Nächste Hand</button>
+    </div>
+  </footer>
+</div>
+
+<script>/*__APP_JS__*/</script>

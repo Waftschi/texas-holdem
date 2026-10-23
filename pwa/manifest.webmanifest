@@ -1,0 +1,16 @@
+{
+  "name": "Hold'em Tisch",
+  "short_name": "Hold'em",
+  "description": "Texas Hold'em mit Chips und Blinds gegen drei Bots.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a110e",
+  "theme_color": "#0a110e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

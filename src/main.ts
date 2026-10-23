@@ -1,0 +1,345 @@
+// Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
+import { Game, Player } from './game';
+import { Action, ActCtx, STYLES } from './bots';
+import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
+
+const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
+const fmt = (n: number): string => n.toLocaleString('de-DE');
+const r5 = (n: number): number => Math.round(n / 5) * 5;
+
+let game: Game;
+let humanCtx: ActCtx | null = null;
+let humanResolve: ((a: Action) => void) | null = null;
+let nextResolve: (() => void) | null = null;
+let raiseOpen = false;
+let raiseTo = 0;
+let eqOn = false;
+let eqKey = '';
+let eqVal: number | null = null;
+let lastHand = -1;
+const seen = new Set<string>();
+
+// ---------- Bausteine ----------
+
+function cardHTML(c: number, key: string, size: string): string {
+  const k = 'u' + key;
+  const fresh = !seen.has(k);
+  seen.add(k);
+  const s = suitOf(c);
+  const r = RANKS[rankOf(c)];
+  const hi = game.handOver && game.winCards.size ? (game.winCards.has(c) ? ' hi' : ' dim') : '';
+  return `<div class="card ${size}${isRed(c) ? ' red' : ''}${fresh ? ' deal' : ''}${hi}" role="img" aria-label="${r} ${SUIT_NAMES[s]}"><b class="rk">${r}</b><i class="st">${SUITS[s]}</i><i class="big">${SUITS[s]}</i></div>`;
+}
+
+function backHTML(key: string, size: string): string {
+  const k = 'd' + key;
+  const fresh = !seen.has(k);
+  seen.add(k);
+  return `<div class="card back ${size}${fresh ? ' deal' : ''}" aria-hidden="true"></div>`;
+}
+
+const DENOMS = [1000, 500, 100, 25, 5];
+
+function chipsHTML(amount: number): string {
+  if (amount <= 0) return '';
+  let rest = amount;
+  const cols: string[] = [];
+  for (const d of DENOMS) {
+    const n = Math.min(5, Math.floor(rest / d));
+    rest -= Math.floor(rest / d) * d;
+    if (n <= 0) continue;
+    let chips = '';
+    for (let i = 0; i < n; i++) chips += `<i class="chip c${d}" style="bottom:${i * 4}px"></i>`;
+    cols.push(`<span class="col" style="height:${11 + (n - 1) * 4 + 2}px">${chips}</span>`);
+  }
+  return `<span class="chips" aria-hidden="true">${cols.join('')}</span>`;
+}
+
+function seatHTML(p: Player): string {
+  const g = game;
+  const turn = g.toAct === p.id && !g.handOver && !g.over;
+  const cls = ['seat', p.folded && !p.out ? 'folded' : '', p.out ? 'out' : '', turn ? 'turn' : '', p.won > 0 ? 'winner' : '']
+    .filter(Boolean)
+    .join(' ');
+  let cards = '';
+  if (!p.out && !p.folded) {
+    cards = p.hole
+      .map((c, i) => (p.shown ? cardHTML(c, `p${p.id}h${i}`, 'sm') : backHTML(`p${p.id}h${i}`, 'sm')))
+      .join('');
+  }
+  const tag = p.out ? 'raus' : turn ? '…' : p.won > 0 ? `+${fmt(p.won)}` : p.tag;
+  const dealer = g.handNo > 0 && g.dealer === p.id ? '<b class="dbtn" title="Dealer">D</b>' : '';
+  return `<div class="${cls}"><div class="nm"><span>${p.name}</span>${dealer}</div><div class="ds">${p.style?.desc ?? ''}</div><div class="stk">${fmt(p.stack)}</div><div class="cards">${cards}</div><div class="tg">${tag}</div><div class="hl">${p.shown && !p.folded ? p.handLabel : ''}</div><div class="bt">${chipsHTML(p.bet)}${p.bet > 0 ? `<span>${fmt(p.bet)}</span>` : ''}</div></div>`;
+}
+
+function renderMe(): void {
+  const g = game;
+  const p = g.players[0];
+  const turn = g.toAct === 0 && !g.handOver && !g.over;
+  const el = $('me');
+  el.className = ['me', p.folded && !p.out ? 'folded' : '', turn ? 'turn' : '', p.won > 0 ? 'winner' : ''].filter(Boolean).join(' ');
+  const cards = p.out ? '' : p.hole.map((c, i) => cardHTML(c, `p0h${i}`, 'lg')).join('');
+  let label = '';
+  if (!p.out && !p.folded) {
+    if (g.handOver && p.handLabel) label = p.handLabel;
+    else if (!g.handOver && g.board.length >= 3) label = handName(bestHand(p.hole.concat(g.board)));
+  }
+  const live = !p.out && !p.folded && !g.handOver && p.hole.length === 2;
+  const eq = eqOn && live ? (eqVal === null ? 'Gewinnchance …' : `Gewinnchance ${Math.round(eqVal * 100)} %`) : '';
+  const tag = p.won > 0 ? `+${fmt(p.won)}` : p.tag;
+  const dealer = g.handNo > 0 && g.dealer === 0 ? '<b class="dbtn" title="Dealer">D</b>' : '';
+  el.innerHTML = `<div class="cards">${cards}</div><div class="me-info"><div class="nm"><span>Du</span>${dealer}</div><div class="stk">${fmt(p.stack)}</div><div class="tg">${tag}</div><div class="bt">${chipsHTML(p.bet)}${p.bet > 0 ? `<span>${fmt(p.bet)}</span>` : ''}</div><div class="hl">${label}</div><div class="eq">${eq}</div></div>`;
+}
+
+function streetLabel(): string {
+  const g = game;
+  if (g.handOver) return g.showdownDone ? 'Showdown' : 'Hand beendet';
+  return { idle: '', preflop: 'Preflop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Showdown' }[g.street];
+}
+
+// ---------- Dock ----------
+
+function presetTo(c: ActCtx, frac: number): number {
+  return Math.max(c.minRaiseTo, Math.min(c.maxTo, r5(c.currentBet + frac * (c.pot + c.toCall))));
+}
+
+function renderDock(): void {
+  const g = game;
+  const me = g.players[0];
+  const acts = $('acts');
+  const nextRow = $('nextRow');
+  const panel = $('raisePanel');
+  const status = $('dockStatus');
+  const bFold = $<HTMLButtonElement>('bFold');
+  const bCall = $<HTMLButtonElement>('bCall');
+  const bRaise = $<HTMLButtonElement>('bRaise');
+
+  if (g.over) {
+    acts.hidden = true;
+    nextRow.hidden = true;
+    panel.hidden = true;
+    status.textContent = '';
+    return;
+  }
+  if (g.handOver) {
+    acts.hidden = true;
+    panel.hidden = true;
+    nextRow.hidden = false;
+    status.textContent = `Hand ${g.handNo} beendet`;
+    return;
+  }
+  acts.hidden = false;
+  nextRow.hidden = true;
+
+  const c = humanCtx;
+  if (!c) {
+    panel.hidden = true;
+    bFold.disabled = true;
+    bCall.disabled = true;
+    bRaise.disabled = true;
+    bFold.textContent = 'Fold';
+    bCall.textContent = 'Call';
+    bRaise.textContent = 'Raise';
+    if (me.folded) status.textContent = 'Du hast gefoldet. Die Hand läuft weiter …';
+    else if (g.toAct > 0) status.textContent = `${g.players[g.toAct].name} überlegt …`;
+    else status.textContent = '';
+    return;
+  }
+
+  status.textContent = `Du bist dran · ${c.canCheck ? 'kein Einsatz offen' : 'zu zahlen ' + fmt(c.toCall)} · Pot ${fmt(c.pot)}`;
+  bFold.disabled = c.canCheck;
+  bFold.textContent = 'Fold';
+  bCall.disabled = false;
+  bCall.textContent = c.canCheck ? 'Check' : c.toCall >= c.stack ? `All-in ${fmt(c.stack)}` : `Call ${fmt(c.toCall)}`;
+
+  const single = c.minRaiseTo >= c.maxTo; // nur All-in als Erhöhung möglich
+  const verb = c.currentBet === 0 ? 'Bet' : 'Raise';
+  bRaise.disabled = !c.canRaise;
+  panel.hidden = !(raiseOpen && c.canRaise && !single);
+  if (!c.canRaise) bRaise.textContent = verb;
+  else if (single) bRaise.textContent = `All-in ${fmt(c.maxTo)}`;
+  else if (raiseOpen) bRaise.textContent = raiseTo >= c.maxTo ? `All-in ${fmt(c.maxTo)}` : `${verb} auf ${fmt(raiseTo)}`;
+  else bRaise.textContent = verb;
+
+  if (!panel.hidden) {
+    const slider = $<HTMLInputElement>('slider');
+    slider.min = String(c.minRaiseTo);
+    slider.max = String(c.maxTo);
+    slider.step = '5';
+    slider.value = String(raiseTo);
+    $('raiseOut').textContent = fmt(raiseTo);
+  }
+}
+
+function act(a: Action): void {
+  if (!humanResolve) return;
+  const r = humanResolve;
+  humanResolve = null;
+  humanCtx = null;
+  raiseOpen = false;
+  r(a);
+  render();
+}
+
+function askHuman(ctx: ActCtx): Promise<Action> {
+  humanCtx = ctx;
+  raiseOpen = false;
+  return new Promise((res) => {
+    humanResolve = res;
+    render();
+  });
+}
+
+// ---------- Gewinnchance (Monte-Carlo) ----------
+
+function maybeEquity(): void {
+  if (!eqOn) return;
+  const g = game;
+  const me = g.players[0];
+  if (me.out || me.folded || me.hole.length < 2 || g.handOver) return;
+  const nOpp = g.players.filter((p) => p.id !== 0 && !p.out && !p.folded).length;
+  if (nOpp === 0) return;
+  const key = `${me.hole.join()}|${g.board.join()}|${nOpp}`;
+  if (key === eqKey) return;
+  eqKey = key;
+  eqVal = null;
+  setTimeout(() => {
+    if (key !== eqKey) return;
+    eqVal = equity(me.hole, g.board, nOpp, 2500);
+    render();
+  }, 30);
+}
+
+// ---------- Rendern ----------
+
+function render(): void {
+  const g = game;
+  if (g.handNo !== lastHand) {
+    seen.clear();
+    lastHand = g.handNo;
+    eqKey = '';
+    eqVal = null;
+  }
+  $('blinds').textContent = `Blinds ${g.sb}/${g.bb}`;
+  $('handno').textContent = g.handNo > 0 ? `Hand ${g.handNo}` : 'Gleich geht’s los';
+  $('street').textContent = streetLabel();
+
+  let board = '';
+  for (let i = 0; i < 5; i++) board += g.board[i] !== undefined ? cardHTML(g.board[i], `b${i}`, 'md') : '<div class="slot"></div>';
+  $('board').innerHTML = board;
+
+  const collected = g.players.reduce((s, p) => s + p.total - p.bet, 0);
+  $('pot').innerHTML = `${chipsHTML(collected)}<span class="amt">Pot ${fmt(g.pot)}</span>`;
+  $('msg').textContent = g.message;
+
+  $('opps').innerHTML = g.players.slice(1).map(seatHTML).join('');
+  renderMe();
+  renderDock();
+
+  const over = $('over');
+  over.hidden = !g.over;
+  if (g.over) {
+    $('overTitle').textContent = g.over === 'win' ? 'Du hast alle Chips.' : 'Deine Chips sind weg.';
+    $('overSub').textContent =
+      g.over === 'win' ? `Alle drei Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
+  }
+  maybeEquity();
+}
+
+// ---------- Ablauf ----------
+
+function speed(): number {
+  const me = game.players[0];
+  return (me.folded || me.out) && !game.handOver ? 0.25 : 1;
+}
+
+function waitNext(): Promise<void> {
+  return new Promise((res) => {
+    nextResolve = res;
+  });
+}
+
+async function run(): Promise<void> {
+  const g = new Game(
+    {
+      update: () => render(),
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms * speed())),
+      askHuman,
+    },
+    STYLES,
+  );
+  game = g;
+  humanCtx = null;
+  humanResolve = null;
+  render();
+  await new Promise((r) => setTimeout(r, 500));
+  while (!g.over) {
+    await g.playHand();
+    render();
+    if (g.over) break;
+    await waitNext();
+  }
+}
+
+// ---------- Eingaben ----------
+
+$('bFold').addEventListener('click', () => act({ type: 'fold' }));
+$('bCall').addEventListener('click', () => act(humanCtx?.canCheck ? { type: 'check' } : { type: 'call' }));
+$('bRaise').addEventListener('click', () => {
+  const c = humanCtx;
+  if (!c || !c.canRaise) return;
+  if (c.minRaiseTo >= c.maxTo) return act({ type: 'raise', to: c.maxTo });
+  if (!raiseOpen) {
+    raiseOpen = true;
+    raiseTo = presetTo(c, 0.5);
+    render();
+    return;
+  }
+  act({ type: 'raise', to: raiseTo });
+});
+$('slider').addEventListener('input', (e) => {
+  raiseTo = Number((e.target as HTMLInputElement).value);
+  renderDock();
+});
+$('bClose').addEventListener('click', () => {
+  raiseOpen = false;
+  renderDock();
+});
+$('minus').addEventListener('click', () => {
+  const c = humanCtx;
+  if (!c) return;
+  raiseTo = Math.max(c.minRaiseTo, raiseTo - game.bb);
+  renderDock();
+});
+$('plus').addEventListener('click', () => {
+  const c = humanCtx;
+  if (!c) return;
+  raiseTo = Math.min(c.maxTo, raiseTo + game.bb);
+  renderDock();
+});
+$('presets').addEventListener('click', (e) => {
+  const c = humanCtx;
+  const b = (e.target as HTMLElement).closest('button');
+  if (!c || !b) return;
+  const p = b.dataset.p;
+  raiseTo = p === 'min' ? c.minRaiseTo : p === 'max' ? c.maxTo : presetTo(c, Number(p));
+  renderDock();
+});
+$('bNext').addEventListener('click', () => {
+  const r = nextResolve;
+  nextResolve = null;
+  r?.();
+});
+$('bNew').addEventListener('click', () => {
+  seen.clear();
+  lastHand = -1;
+  run();
+});
+$<HTMLInputElement>('eqToggle').addEventListener('change', (e) => {
+  eqOn = (e.target as HTMLInputElement).checked;
+  eqKey = '';
+  eqVal = null;
+  render();
+});
+
+run();
