@@ -3,12 +3,17 @@
 // Vorher einmal: python3 make-icons.py pwa
 import { build } from 'esbuild';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const out = 'dist/pages';
+// Quellen liegen in holdem/, Symbole und Service Worker in pwa/ im Projektordner, das Ergebnis in dist/pages im Projektordner.
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, '..');
+const out = join(root, 'dist/pages');
 mkdirSync(out, { recursive: true });
 
 const res = await build({
-  entryPoints: ['src/main.ts'],
+  entryPoints: [join(here, 'src/main.ts')],
   bundle: true,
   format: 'iife',
   target: 'es2020',
@@ -19,7 +24,7 @@ const res = await build({
 const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 
 // Die Vorlage ist ein Fragment (Titel, Stil, Markup, Skript). Hier bekommt sie ein vollständiges Dokument.
-const tpl = readFileSync('src/template.html', 'utf8').replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '');
+const tpl = readFileSync(join(here, 'src/template.html'), 'utf8').replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '');
 const cut = tpl.indexOf('</style>') + '</style>'.length;
 const head = tpl.slice(0, cut);
 const body = tpl.slice(cut).replace('/*__APP_JS__*/', () => js);
@@ -49,7 +54,7 @@ ${body}
 writeFileSync(`${out}/index.html`, html);
 
 for (const f of ['manifest.webmanifest', 'sw.js', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) {
-  if (!existsSync(`pwa/${f}`)) throw new Error(`pwa/${f} fehlt (make-icons.py ausführen?)`);
-  copyFileSync(`pwa/${f}`, `${out}/${f}`);
+  if (!existsSync(join(root, 'pwa', f))) throw new Error(`pwa/${f} fehlt (make-icons.py ausführen?)`);
+  copyFileSync(join(root, 'pwa', f), join(out, f));
 }
 console.log(`${out}/index.html: ${(html.length / 1024).toFixed(1)} KB`);

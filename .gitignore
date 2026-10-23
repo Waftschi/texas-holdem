@@ -1,2 +1,4 @@
 .idea/**
 screenshots/**
+node_modules/
+dist/

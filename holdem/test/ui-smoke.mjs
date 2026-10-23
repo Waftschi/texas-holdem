@@ -1,5 +1,5 @@
 // Rauchtest: lädt die gebaute Seite in jsdom und spielt ein paar Züge über die Buttons.
-// Aufruf: node test/ui-smoke.mjs dist/holdem.html
+// Aufruf: node holdem/test/ui-smoke.mjs dist/holdem.html   (vorher: node holdem/build.mjs)
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 
