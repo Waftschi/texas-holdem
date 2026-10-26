@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["holdem", "roulette"]
+  "include": ["holdem"]
 }

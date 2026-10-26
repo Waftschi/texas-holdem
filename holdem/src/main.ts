@@ -1,6 +1,7 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
 import { Game, Player } from './game';
-import { Action, ActCtx, STYLES } from './bots';
+import { Action, ActCtx, pickStyles } from './bots';
+import { HandRec, addHand, clearStats, loadStats, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -18,6 +19,31 @@ let eqKey = '';
 let eqVal: number | null = null;
 let lastHand = -1;
 const seen = new Set<string>();
+let rec: HandRec = newRec();
+
+function newRec(): HandRec {
+  return { vpip: 0, pfr: 0, bets: 0, calls: 0, faced: 0, foldedTo: 0, badCalls: 0, badFolds: 0, sd: 0, win: 0, net: 0 };
+}
+
+/** Hält fest, was der Mensch in dieser Hand getan hat. */
+function record(c: ActCtx, a: Action): void {
+  if (a.type === 'raise') {
+    rec.bets++;
+    if (c.street === 0) rec.pfr = rec.vpip = 1;
+  } else if (a.type === 'call') {
+    rec.calls++;
+    if (c.street === 0) rec.vpip = 1;
+  }
+  if (c.toCall <= 0) return;
+  rec.faced++;
+  if (a.type === 'fold') rec.foldedTo++;
+  if (a.type === 'raise') return;
+  const nOpp = Math.max(1, c.nOpp);
+  const eq = equity(c.hole, c.board, nOpp, 300, c.foeLevels);
+  const odds = c.toCall / (c.pot + c.toCall);
+  if (a.type === 'call' && eq < odds - 0.05) rec.badCalls++;
+  if (a.type === 'fold' && eq > odds + 0.1) rec.badFolds++;
+}
 
 // ---------- Bausteine ----------
 
@@ -174,6 +200,7 @@ function renderDock(): void {
 function act(a: Action): void {
   if (!humanResolve) return;
   const r = humanResolve;
+  if (humanCtx) record(humanCtx, a);
   humanResolve = null;
   humanCtx = null;
   raiseOpen = false;
@@ -266,7 +293,7 @@ async function run(): Promise<void> {
       sleep: (ms) => new Promise((r) => setTimeout(r, ms * speed())),
       askHuman,
     },
-    STYLES,
+    pickStyles(),
   );
   game = g;
   humanCtx = null;
@@ -274,7 +301,14 @@ async function run(): Promise<void> {
   render();
   await new Promise((r) => setTimeout(r, 500));
   while (!g.over) {
+    rec = newRec();
+    const before = g.players[0].stack;
     await g.playHand();
+    const me = g.players[0];
+    rec.net = (me.stack - before) / g.bb;
+    rec.win = me.stack > before ? 1 : 0;
+    rec.sd = g.showdownDone && !me.folded ? 1 : 0;
+    addHand(rec);
     render();
     if (g.over) break;
     await waitNext();
@@ -329,6 +363,33 @@ $('bNext').addEventListener('click', () => {
   const r = nextResolve;
   nextResolve = null;
   r?.();
+});
+function showStats(): void {
+  const s = summarize(loadStats());
+  const pct = (x: number | null) => (x === null ? '–' : `${Math.round(x * 100)} %`);
+  $('statsBody').innerHTML = s
+    ? `<p class="label">${s.label}</p>
+<dl>
+<dt>Hände</dt><dd>${s.hands}</dd>
+<dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)}</dd>
+<dt>Preflop erhöht (PFR)</dt><dd>${pct(s.pfr)}</dd>
+<dt>Aggression</dt><dd>${s.aggr === null ? '–' : s.aggr.toFixed(1)}</dd>
+<dt>Fold gegen Einsatz</dt><dd>${pct(s.foldTo)}</dd>
+<dt>Showdown</dt><dd>${pct(s.showdown)}</dd>
+<dt>Hände gewonnen</dt><dd>${pct(s.winRate)}</dd>
+<dt>Ergebnis</dt><dd>${s.bbPerHand >= 0 ? '+' : ''}${s.bbPerHand.toFixed(2)} BB / Hand</dd>
+</dl>
+<ul>${s.tips.map((t) => `<li>${t}</li>`).join('')}</ul>`
+    : '<p>Noch keine Daten. Spiel ein paar Hände.</p>';
+  $<HTMLButtonElement>('bClear').disabled = !s;
+  $('stats').hidden = false;
+}
+$('bStats').addEventListener('click', showStats);
+$('bStatsClose').addEventListener('click', () => ($('stats').hidden = true));
+$('bClear').addEventListener('click', () => {
+  if (!confirm('Alle gespeicherten Statistiken löschen?')) return;
+  if (clearStats()) showStats();
+  else alert('Löschen nicht möglich: Der Browser-Speicher ist gesperrt.');
 });
 $('bNew').addEventListener('click', () => {
   seen.clear();

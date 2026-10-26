@@ -196,6 +196,18 @@
   .over p { margin: 0; color: var(--muted); }
   .over .btn { padding: 0 28px; }
 
+  /* Statistik */
+  .stats { position: fixed; inset: 0; z-index: 20; display: grid; place-content: safe center; padding: 16px; overflow: auto; background: rgba(6,14,10,.92); }
+  .stats[hidden] { display: none; }
+  .stats-box { width: min(420px, 100%); display: grid; gap: 12px; }
+  .stats h2 { margin: 0; font: 400 28px/1.1 var(--font-display); }
+  .stats .label { margin: 0; color: var(--brass); font-weight: 600; }
+  .stats dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .stats dt { color: var(--muted); }
+  .stats dd { margin: 0; font: 600 14px var(--font-mono); text-align: right; }
+  .stats ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  .stats-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn.sm { padding: 0 12px; }
   @media (max-height: 640px) {
     .over { padding: 12px; gap: 8px; }
   }
@@ -217,6 +229,7 @@
       <h1>Hold'em Tisch</h1>
       <div class="sub"><span id="blinds">Blinds 10/20</span> · <span id="handno"></span></div>
     </div>
+    <button class="btn sm" id="bStats" type="button">Statistik</button>
     <label class="sw">
       <input type="checkbox" id="eqToggle">
       <span class="knob" aria-hidden="true"></span>
@@ -239,6 +252,17 @@
       <h2 id="overTitle"></h2>
       <p id="overSub"></p>
       <button class="btn primary" id="bNew" type="button">Neues Spiel</button>
+    </div>
+  </div>
+
+  <div class="stats" id="stats" hidden role="dialog" aria-label="Statistik">
+    <div class="stats-box">
+      <h2>Dein Spiel</h2>
+      <div id="statsBody"></div>
+      <div class="stats-btns">
+        <button class="btn" id="bClear" type="button">Daten löschen</button>
+        <button class="btn primary" id="bStatsClose" type="button">Schließen</button>
+      </div>
     </div>
   </div>
 
