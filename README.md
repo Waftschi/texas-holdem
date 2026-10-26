@@ -23,14 +23,15 @@ Der Button **Statistik** in der Kopfzeile zeigt eine Auswertung des eigenen Spie
 |---|---|
 | **VPIP** (Voluntarily Put money In Pot) | Anteil der Hände, in denen du preflop freiwillig Chips setzt (Call oder Raise). Blinds und Check im Big Blind zählen nicht. Hoch heißt: du spielst viele Hände (typisch 20–40 %). |
 | **PFR** (PreFlop Raise) | Anteil der Hände, in denen du preflop erhöhst. Immer höchstens so hoch wie VPIP. Ein großer Abstand heißt: du gehst meist nur mit. |
-| **BB** (Big Blind) | Der größere erzwungene Einsatz. „BB / Hand“ ist dein durchschnittlicher Gewinn oder Verlust pro Hand in Big Blinds, unabhängig von den steigenden Blinds. |
+| **BB** (Big Blind) | Der größere erzwungene Einsatz. „Ø pro Hand“ ist dein durchschnittlicher Gewinn oder Verlust pro Hand in Big Blinds, unabhängig von den steigenden Blinds. |
+| **Bilanz** | Gewonnene minus verlorene Chips über alle gespeicherten Hände, dazu Anzahl der Hände im Plus und Minus sowie größter Gewinn und Verlust in einer Hand. Ältere Datensätze ohne Chip-Angabe zählen mit 0. |
 | **Aggression** | (Bets + Raises) ÷ Calls. Über 1,5 aggressiv, unter 0,8 passiv. |
 | **Fold gegen Einsatz** | Wie oft du foldest, wenn du einem Einsatz gegenüberstehst. |
 | **Showdown** | Anteil der Hände, die du bis zum Aufdecken spielst. |
 | **Pot-Odds** | Preis des Calls im Verhältnis zum Pot: `zu zahlen / (Pot + zu zahlen)`. Ein Call lohnt sich, wenn die Gewinnchance (Equity) höher ist. Darauf beruhen die Hinweise zu schlechten Calls und Folds. |
 | **Equity** | Deine Gewinnchance in der Hand, per Simulation geschätzt. |
 
-Aus den Zahlen entsteht ein Stil-Etikett (z. B. „straff · aggressiv“) und einige Tipps. Unter 20 Händen zeigt die Statistik nur an, dass noch zu wenig Daten vorliegen. Der Code steht in `holdem/src/stats.ts`.
+Aus VPIP und Aggression entsteht ein Spielertyp mit Namen (z. B. „Scharfschütze“ für straff · aggressiv, „Fels“ für straff · passiv, „Draufgänger“ für locker · aggressiv) und einem Etikett (z. B. „straff · aggressiv“) und einige Tipps. Unter 20 Händen zeigt die Statistik nur an, dass noch zu wenig Daten vorliegen. Der Code steht in `holdem/src/stats.ts`.
 
 ## Entwicklung
 

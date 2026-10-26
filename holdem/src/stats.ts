@@ -14,6 +14,7 @@ export interface HandRec {
   sd: number; // 1 = Showdown erreicht
   win: number; // 1 = Hand mit Gewinn beendet
   net: number; // Ergebnis in Big Blinds
+  chips?: number; // Ergebnis in Chips (fehlt bei älteren Datensätzen)
 }
 
 export interface Summary {
@@ -25,11 +26,32 @@ export interface Summary {
   showdown: number;
   winRate: number;
   bbPerHand: number;
+  chips: number; // Bilanz: gewonnene minus verlorene Chips
+  won: number; // Anzahl Hände im Plus
+  lost: number; // Anzahl Hände im Minus
+  best: number; // größter Gewinn in einer Hand
+  worst: number; // größter Verlust in einer Hand
   badCalls: number;
   badFolds: number;
+  name: string; // ein Name für den Spielertyp, z. B. „Fels“
   label: string;
   tips: string[];
 }
+
+const NAMES: Record<string, string> = {
+  'locker|aggressiv': 'Draufgänger',
+  'locker|solide': 'Zocker',
+  'locker|passiv': 'Mitläufer',
+  'locker|': 'Hitzkopf',
+  'ausgewogen|aggressiv': 'Hai',
+  'ausgewogen|solide': 'Allrounder',
+  'ausgewogen|passiv': 'Beobachter',
+  'ausgewogen|': 'Allrounder',
+  'straff|aggressiv': 'Scharfschütze',
+  'straff|solide': 'Stratege',
+  'straff|passiv': 'Fels',
+  'straff|': 'Fels',
+};
 
 export function loadStats(): HandRec[] {
   try {
@@ -74,8 +96,14 @@ export function summarize(recs: HandRec[]): Summary | null {
     showdown: sum((r) => r.sd) / n,
     winRate: sum((r) => r.win) / n,
     bbPerHand: sum((r) => r.net) / n,
+    chips: sum((r) => r.chips ?? 0),
+    won: recs.filter((r) => r.net > 0).length,
+    lost: recs.filter((r) => r.net < 0).length,
+    best: Math.max(0, ...recs.map((r) => r.chips ?? 0)),
+    worst: Math.min(0, ...recs.map((r) => r.chips ?? 0)),
     badCalls: sum((r) => r.badCalls),
     badFolds: sum((r) => r.badFolds),
+    name: '',
     label: '',
     tips: [],
   };
@@ -87,6 +115,7 @@ export function summarize(recs: HandRec[]): Summary | null {
   const loose = s.vpip > 0.4 ? 'locker' : s.vpip < 0.2 ? 'straff' : 'ausgewogen';
   const agg = s.aggr === null ? '' : s.aggr >= 1.5 ? 'aggressiv' : s.aggr < 0.8 ? 'passiv' : 'solide';
   s.label = [loose, agg].filter(Boolean).join(' · ');
+  s.name = NAMES[`${loose}|${agg}`];
   if (s.vpip > 0.4) s.tips.push('Du spielst viele Hände. Schwache Starthände früh wegzuwerfen spart Chips.');
   if (s.vpip < 0.2) s.tips.push('Du spielst sehr wenige Hände. In später Position darfst du mehr mitgehen.');
   if (s.vpip - s.pfr > 0.2) s.tips.push('Du gehst oft nur mit, statt zu erhöhen. Mit guten Händen öfter selbst erhöhen.');

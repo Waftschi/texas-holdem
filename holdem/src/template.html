@@ -201,10 +201,14 @@
   .stats[hidden] { display: none; }
   .stats-box { width: min(420px, 100%); display: grid; gap: 12px; }
   .stats h2 { margin: 0; font: 400 28px/1.1 var(--font-display); }
+  .stats .name { margin: 0; font: 400 40px/1 var(--font-display); color: var(--brass); }
   .stats .label { margin: 0; color: var(--brass); font-weight: 600; }
   .stats dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; }
   .stats dt { color: var(--muted); }
   .stats dd { margin: 0; font: 600 14px var(--font-mono); text-align: right; }
+  .stats dd.plus { color: var(--good); }
+  .stats dd.minus { color: var(--bad); }
+  .stats .hint { margin: 0; font-size: 12px; color: var(--muted); }
   .stats ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
   .stats-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .btn.sm { padding: 0 12px; }

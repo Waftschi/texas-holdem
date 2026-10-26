@@ -18,6 +18,11 @@ let eqOn = false;
 let eqKey = '';
 let eqVal: number | null = null;
 let lastHand = -1;
+// Schutz vor Doppel-Taps: Eingaben direkt nach dem Freischalten der Buttons oder dem Öffnen des Raise-Reglers zählen nicht.
+const TAP_GUARD_MS = 450;
+let armedAt = 0;
+let raiseOpenedAt = 0;
+const guarded = (since: number): boolean => performance.now() - since < TAP_GUARD_MS;
 const seen = new Set<string>();
 let rec: HandRec = newRec();
 
@@ -198,7 +203,7 @@ function renderDock(): void {
 }
 
 function act(a: Action): void {
-  if (!humanResolve) return;
+  if (!humanResolve || guarded(armedAt)) return;
   const r = humanResolve;
   if (humanCtx) record(humanCtx, a);
   humanResolve = null;
@@ -211,6 +216,7 @@ function act(a: Action): void {
 function askHuman(ctx: ActCtx): Promise<Action> {
   humanCtx = ctx;
   raiseOpen = false;
+  armedAt = performance.now();
   return new Promise((res) => {
     humanResolve = res;
     render();
@@ -281,6 +287,7 @@ function speed(): number {
 }
 
 function waitNext(): Promise<void> {
+  armedAt = performance.now();
   return new Promise((res) => {
     nextResolve = res;
   });
@@ -305,7 +312,8 @@ async function run(): Promise<void> {
     const before = g.players[0].stack;
     await g.playHand();
     const me = g.players[0];
-    rec.net = (me.stack - before) / g.bb;
+    rec.chips = me.stack - before;
+    rec.net = rec.chips / g.bb;
     rec.win = me.stack > before ? 1 : 0;
     rec.sd = g.showdownDone && !me.folded ? 1 : 0;
     addHand(rec);
@@ -325,10 +333,12 @@ $('bRaise').addEventListener('click', () => {
   if (c.minRaiseTo >= c.maxTo) return act({ type: 'raise', to: c.maxTo });
   if (!raiseOpen) {
     raiseOpen = true;
+    raiseOpenedAt = performance.now();
     raiseTo = presetTo(c, 0.5);
     render();
     return;
   }
+  if (guarded(raiseOpenedAt)) return;
   act({ type: 'raise', to: raiseTo });
 });
 $('slider').addEventListener('input', (e) => {
@@ -360,15 +370,17 @@ $('presets').addEventListener('click', (e) => {
   renderDock();
 });
 $('bNext').addEventListener('click', () => {
+  if (guarded(armedAt)) return;
   const r = nextResolve;
   nextResolve = null;
   r?.();
 });
 function showStats(): void {
   const s = summarize(loadStats());
+  const signed = (n: number) => (n > 0 ? '+' : '') + fmt(n);
   const pct = (x: number | null) => (x === null ? '–' : `${Math.round(x * 100)} %`);
   $('statsBody').innerHTML = s
-    ? `<p class="label">${s.label}</p>
+    ? `${s.name ? `<p class="name">${s.name}</p>` : ''}<p class="label">${s.label}</p>
 <dl>
 <dt>Hände</dt><dd>${s.hands}</dd>
 <dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)}</dd>
@@ -377,8 +389,12 @@ function showStats(): void {
 <dt>Fold gegen Einsatz</dt><dd>${pct(s.foldTo)}</dd>
 <dt>Showdown</dt><dd>${pct(s.showdown)}</dd>
 <dt>Hände gewonnen</dt><dd>${pct(s.winRate)}</dd>
-<dt>Ergebnis</dt><dd>${s.bbPerHand >= 0 ? '+' : ''}${s.bbPerHand.toFixed(2)} BB / Hand</dd>
+<dt>Bilanz</dt><dd class="${s.chips >= 0 ? 'plus' : 'minus'}">${signed(s.chips)} Chips</dd>
+<dt>Hände im Plus / Minus</dt><dd>${s.won} / ${s.lost}</dd>
+<dt>Größter Gewinn / Verlust</dt><dd>${signed(s.best)} / ${signed(s.worst)}</dd>
+<dt>Ø pro Hand</dt><dd>${s.bbPerHand >= 0 ? '+' : ''}${s.bbPerHand.toFixed(2)} BB</dd>
 </dl>
+<p class="hint">BB = Big Blind, der größere Pflichteinsatz. „Ø pro Hand“ ist dein durchschnittlicher Gewinn (+) oder Verlust (−) pro Hand, gemessen in Big Blinds. So bleibt der Wert vergleichbar, auch wenn die Blinds steigen.</p>
 <ul>${s.tips.map((t) => `<li>${t}</li>`).join('')}</ul>`
     : '<p>Noch keine Daten. Spiel ein paar Hände.</p>';
   $<HTMLButtonElement>('bClear').disabled = !s;

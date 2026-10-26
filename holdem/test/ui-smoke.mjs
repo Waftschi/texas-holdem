@@ -20,6 +20,7 @@ while (Date.now() - t0 < 90000 && (turns < 14 || hands < 2)) {
   if (!$('nextRow').hidden) {
     hands++;
     console.log(`Hand ${hands} fertig:`, $('msg').textContent);
+    await sleep(500); // Doppel-Tap-Schutz
     $('bNext').click();
     continue;
   }
@@ -33,12 +34,26 @@ while (Date.now() - t0 < 90000 && (turns < 14 || hands < 2)) {
     '| Board:', d.querySelectorAll('#board .card').length,
     '| Hand:', d.querySelectorAll('#me .card').length,
   );
+  // Ein sofortiger Tap darf nichts auslösen (Doppel-Tap-Schutz) ...
+  $('bCall').click();
+  $('bFold').click();
+  if (!$('dockStatus').textContent.startsWith('Du bist dran')) {
+    console.log('FEHLER: Tap direkt nach Freischaltung wurde ausgeführt');
+    process.exit(1);
+  }
+  await sleep(500); // ... erst danach zählt er.
   const pick = turns % 4;
   if (pick === 1 && !$('bRaise').disabled) {
     $('bRaise').click();
     console.log('  Raise-Panel offen:', !$('raisePanel').hidden, '->', $('bRaise').textContent);
     $('presets').querySelector('[data-p="1"]')?.click();
     console.log('  Pot-Preset:', $('bRaise').textContent);
+    $('bRaise').click(); // zweiter Tap sofort nach dem Öffnen: wird ignoriert
+    if ($('raisePanel').hidden) {
+      console.log('FEHLER: Raise wurde per Doppel-Tap bestätigt');
+      process.exit(1);
+    }
+    await sleep(500);
     $('bRaise').click();
   } else if (pick === 2 && !$('bFold').disabled) {
     $('bFold').click();
