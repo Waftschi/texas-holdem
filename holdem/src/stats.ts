@@ -1,6 +1,29 @@
 // Auswertung des eigenen Spiels: pro Hand ein kleiner Datensatz im localStorage, Kennzahlen werden beim Öffnen berechnet.
 const KEY = 'holdem.stats.v1';
 const MAX_HANDS = 2000;
+const LOG_KEY = 'holdem.log.v1';
+
+export interface HandLog {
+  no: number;
+  lines: string[];
+}
+
+export function saveLog(h: HandLog[]): void {
+  try {
+    localStorage.setItem(LOG_KEY, JSON.stringify(h));
+  } catch {
+    /* ignorieren */
+  }
+}
+
+export function loadLog(): HandLog[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
 
 export interface HandRec {
   vpip: number; // 1 = freiwillig Geld in den Pot (Call oder Raise preflop)
@@ -75,6 +98,7 @@ export function addHand(rec: HandRec): void {
 export function clearStats(): boolean {
   try {
     localStorage.removeItem(KEY);
+    localStorage.removeItem(LOG_KEY);
     return true;
   } catch {
     return false;

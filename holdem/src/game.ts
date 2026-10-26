@@ -79,6 +79,9 @@ export class Game {
   showdownDone = false;
   winCards = new Set<number>();
   over: 'win' | 'lose' | null = null;
+  /** Protokoll der letzten Hände: jede Aktion mit Einsatz, Stack und Pot, zum Nachprüfen der Chips. */
+  history: { no: number; lines: string[] }[] = [];
+  private lines: string[] = [];
 
   constructor(
     private hooks: Hooks,
@@ -107,6 +110,14 @@ export class Game {
       if (ok(this.players[i])) return i;
     }
     return from;
+  }
+
+  private note(line: string): void {
+    this.lines.push(line);
+  }
+
+  private stacks(): string {
+    return this.players.map((p) => `${p.name} ${p.stack}`).join(', ');
   }
 
   private u(): void {
@@ -200,6 +211,7 @@ export class Game {
       this.message = p.allIn ? `${who}: All-in ${p.bet}` : `${who}: ${before === 0 ? 'Bet' : 'Raise auf'} ${p.bet}`;
     }
     p.acted = true;
+    this.note(`${this.street}: ${this.message} | Einsatz ${p.bet} · Stack ${p.stack} · Pot ${this.pot}`);
   }
 
   private async betRound(first: number): Promise<void> {
@@ -246,6 +258,10 @@ export class Game {
     const level = Math.min(4, Math.floor((this.handNo - 1) / HANDS_PER_LEVEL));
     this.sb = 10 * 2 ** level;
     this.bb = this.sb * 2;
+    this.lines = [];
+    this.history.push({ no: this.handNo, lines: this.lines });
+    if (this.history.length > 30) this.history.shift();
+    this.note(`Start: ${this.stacks()} (Summe ${this.players.reduce((t, p) => t + p.stack, 0)})`);
     for (const p of ps) {
       p.hole = [];
       p.bet = 0;
@@ -288,6 +304,7 @@ export class Game {
     this.put(ps[bbI], this.bb);
     ps[bbI].tag = 'BB';
     this.currentBet = Math.max(...ps.map((p) => p.bet));
+    this.note(`Blinds ${this.sb}/${this.bb}: ${ps[sbI].name} SB ${ps[sbI].bet}, ${ps[bbI].name} BB ${ps[bbI].bet}`);
     this.message = level > 0 && (this.handNo - 1) % HANDS_PER_LEVEL === 0 ? `Blinds steigen auf ${this.sb}/${this.bb}` : `Hand ${this.handNo}`;
     this.u();
     await this.hooks.sleep(800);
@@ -307,6 +324,7 @@ export class Game {
         const cnt = s === 1 ? 3 : 1;
         for (let k = 0; k < cnt; k++) this.board.push(this.deck.pop()!);
         this.message = ['', 'Flop', 'Turn', 'River'][s];
+        this.note(`${this.message}: Pot ${this.pot}`);
         this.u();
         await this.hooks.sleep(700);
       }
@@ -417,6 +435,8 @@ export class Game {
     else if (ps.slice(1).every((p) => p.out)) this.over = 'win';
     this.toAct = -1;
     this.handOver = true;
+    this.note(`Ende: ${this.message}`);
+    this.note(`Stacks: ${this.stacks()} (Summe ${ps.reduce((t, p) => t + p.stack, 0)})`);
     this.u();
   }
 }

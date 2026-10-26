@@ -1,7 +1,7 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
 import { Game, Player } from './game';
 import { Action, ActCtx, pickStyles } from './bots';
-import { HandRec, addHand, clearStats, loadStats, summarize } from './stats';
+import { HandRec, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -317,6 +317,7 @@ async function run(): Promise<void> {
     rec.win = me.stack > before ? 1 : 0;
     rec.sd = g.showdownDone && !me.folded ? 1 : 0;
     addHand(rec);
+    saveLog(g.history);
     render();
     if (g.over) break;
     await waitNext();
@@ -400,7 +401,17 @@ function showStats(): void {
   $<HTMLButtonElement>('bClear').disabled = !s;
   $('stats').hidden = false;
 }
+function showLog(): void {
+  const hs = game && game.history.length ? game.history : loadLog();
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  $('logBody').innerHTML = hs.length
+    ? [...hs].reverse().map((h) => `<h3>Hand ${h.no}</h3><pre>${h.lines.map(esc).join('\n')}</pre>`).join('')
+    : '<p>Noch keine Hände.</p>';
+  $('log').hidden = false;
+}
 $('bStats').addEventListener('click', showStats);
+$('bLog').addEventListener('click', showLog);
+$('bLogClose').addEventListener('click', () => ($('log').hidden = true));
 $('bStatsClose').addEventListener('click', () => ($('stats').hidden = true));
 $('bClear').addEventListener('click', () => {
   if (!confirm('Alle gespeicherten Statistiken löschen?')) return;

@@ -211,6 +211,9 @@
   .stats .hint { margin: 0; font-size: 12px; color: var(--muted); }
   .stats ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
   .stats-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stats-btns .primary { grid-column: 1 / -1; }
+  .stats h3 { margin: 12px 0 4px; font: 600 13px var(--font-body); color: var(--brass); }
+  .stats pre { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--font-mono); color: var(--text); }
   .btn.sm { padding: 0 12px; }
   @media (max-height: 640px) {
     .over { padding: 12px; gap: 8px; }
@@ -264,9 +267,19 @@
       <h2>Dein Spiel</h2>
       <div id="statsBody"></div>
       <div class="stats-btns">
+        <button class="btn" id="bLog" type="button">Handverlauf</button>
         <button class="btn" id="bClear" type="button">Daten löschen</button>
         <button class="btn primary" id="bStatsClose" type="button">Schließen</button>
       </div>
+    </div>
+  </div>
+
+  <div class="stats" id="log" hidden role="dialog" aria-label="Handverlauf">
+    <div class="stats-box">
+      <h2>Handverlauf</h2>
+      <p class="hint">Die letzten Hände mit Einsatz, Stack und Pot nach jeder Aktion.</p>
+      <div id="logBody"></div>
+      <div class="stats-btns"><button class="btn primary" id="bLogClose" type="button">Schließen</button></div>
     </div>
   </div>
 
