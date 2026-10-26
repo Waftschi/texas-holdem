@@ -190,11 +190,15 @@
   .nextrow { display: grid; }
 
   /* Ende */
-  .over { position: absolute; inset: 0; border-radius: 26px; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; padding: 24px; background: rgba(6,14,10,.84); }
-  .over h2 { margin: 0; font: 400 32px/1.1 var(--font-display); text-wrap: balance; }
+  .over { position: absolute; inset: 0; z-index: 10; border-radius: 26px; display: grid; place-content: safe center; justify-items: center; gap: 12px; text-align: center; padding: 24px; overflow: auto; background: rgba(6,14,10,.84); }
+  .over[hidden] { display: none; }
+  .over h2 { margin: 0; font: 400 clamp(22px, 7vw, 32px)/1.1 var(--font-display); text-wrap: balance; }
   .over p { margin: 0; color: var(--muted); }
   .over .btn { padding: 0 28px; }
 
+  @media (max-height: 640px) {
+    .over { padding: 12px; gap: 8px; }
+  }
   @media (max-width: 380px) {
     .me { gap: 10px; }
     .me .card.lg { --cw: 60px; }
