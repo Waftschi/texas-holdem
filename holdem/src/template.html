@@ -209,6 +209,9 @@
   .stats dd.plus { color: var(--good); }
   .stats dd.minus { color: var(--bad); }
   .stats .hint { margin: 0; font-size: 12px; color: var(--muted); }
+  .model { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .model label { color: var(--muted); }
+  .model select { height: 44px; border-radius: 12px; border: 1px solid var(--line); background: #1a2821; color: var(--text); font: inherit; padding: 0 12px; }
   .stats ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
   .stats-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .stats-btns .primary { grid-column: 1 / -1; }
@@ -266,6 +269,11 @@
     <div class="stats-box">
       <h2>Dein Spiel</h2>
       <div id="statsBody"></div>
+      <div class="model">
+        <label for="modelSel">Bot-Modell</label>
+        <select id="modelSel"></select>
+        <p class="hint" id="modelDesc"></p>
+      </div>
       <div class="stats-btns">
         <button class="btn" id="bLog" type="button">Handverlauf</button>
         <button class="btn" id="bClear" type="button">Daten löschen</button>

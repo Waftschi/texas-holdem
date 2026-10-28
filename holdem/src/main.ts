@@ -1,6 +1,6 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
 import { Game, Player } from './game';
-import { Action, ActCtx, pickStyles } from './bots';
+import { Action, ActCtx, MODELS, getModel, pickStyles, setModel } from './bots';
 import { HandRec, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
@@ -401,6 +401,33 @@ function showStats(): void {
   $<HTMLButtonElement>('bClear').disabled = !s;
   $('stats').hidden = false;
 }
+const MODEL_KEY = 'holdem.model.v1';
+
+function initModel(): void {
+  try {
+    setModel(localStorage.getItem(MODEL_KEY) || '');
+  } catch {
+    /* Speicher gesperrt: Standardmodell */
+  }
+  const sel = $<HTMLSelectElement>('modelSel');
+  sel.innerHTML = MODELS.map((m) => `<option value="${m.id}">${m.name}</option>`).join('');
+  const show = () => {
+    sel.value = getModel().id;
+    $('modelDesc').textContent = getModel().desc;
+  };
+  sel.addEventListener('change', () => {
+    setModel(sel.value);
+    try {
+      localStorage.setItem(MODEL_KEY, sel.value);
+    } catch {
+      /* ignorieren */
+    }
+    show();
+  });
+  show();
+}
+initModel();
+
 function showLog(): void {
   const hs = game && game.history.length ? game.history : loadLog();
   const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
