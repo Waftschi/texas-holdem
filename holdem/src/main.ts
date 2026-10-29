@@ -116,7 +116,9 @@ function renderMe(): void {
     else if (!g.handOver && g.board.length >= 3) label = handName(bestHand(p.hole.concat(g.board)));
   }
   const live = !p.out && !p.folded && !g.handOver && p.hole.length === 2;
-  const eq = eqOn && live ? (eqVal === null ? 'Gewinnchance …' : `Gewinnchance ${Math.round(eqVal * 100)} %`) : '';
+  const c = humanCtx;
+  const odds = c && c.toCall > 0 ? ` · Pot-Odds ${Math.round((c.toCall / (c.pot + c.toCall)) * 100)} %` : '';
+  const eq = eqOn && live ? (eqVal === null ? 'Gewinnchance …' : `Gewinnchance ${Math.round(eqVal * 100)} %`) + odds : '';
   const tag = p.won > 0 ? `+${fmt(p.won)}` : p.tag;
   const dealer = g.handNo > 0 && g.dealer === 0 ? '<b class="dbtn" title="Dealer">D</b>' : '';
   el.innerHTML = `<div class="cards">${cards}</div><div class="me-info"><div class="nm"><span>Du</span>${dealer}</div><div class="stk">${fmt(p.stack)}</div><div class="tg">${tag}</div><div class="bt">${chipsHTML(p.bet)}${p.bet > 0 ? `<span>${fmt(p.bet)}</span>` : ''}</div><div class="hl">${label}</div><div class="eq">${eq}</div></div>`;

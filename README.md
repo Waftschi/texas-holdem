@@ -39,7 +39,7 @@ Der Button **Statistik** in der Kopfzeile zeigt eine Auswertung des eigenen Spie
 | **Aggression** | (Bets + Raises) ÷ Calls. Über 1,5 aggressiv, unter 0,8 passiv. |
 | **Fold gegen Einsatz** | Wie oft du foldest, wenn du einem Einsatz gegenüberstehst. |
 | **Showdown** | Anteil der Hände, die du bis zum Aufdecken spielst. |
-| **Pot-Odds** | Preis des Calls im Verhältnis zum Pot: `zu zahlen / (Pot + zu zahlen)`. Ein Call lohnt sich, wenn die Gewinnchance (Equity) höher ist. Darauf beruhen die Hinweise zu schlechten Calls und Folds. |
+| **Pot-Odds** | Preis des Calls im Verhältnis zum Pot: `zu zahlen / (Pot + zu zahlen)`. Ein Call lohnt sich, wenn die Gewinnchance (Equity) höher ist. Darauf beruhen die Hinweise zu schlechten Calls und Folds. Mit eingeschalteter **Gewinnchance** steht der Wert bei einem offenen Einsatz neben deiner Gewinnchance („Gewinnchance 45 % · Pot-Odds 25 %“): Liegt die Gewinnchance darüber, lohnt sich der Call rechnerisch. |
 | **Equity** | Deine Gewinnchance in der Hand, per Simulation geschätzt. |
 
 Aus VPIP und Aggression entsteht ein Spielertyp mit Namen (z. B. „Scharfschütze“ für straff · aggressiv, „Fels“ für straff · passiv, „Draufgänger“ für locker · aggressiv) und einem Etikett (z. B. „straff · aggressiv“) und einige Tipps. Unter 20 Händen zeigt die Statistik nur an, dass noch zu wenig Daten vorliegen. Der Code steht in `holdem/src/stats.ts`.
