@@ -1,7 +1,7 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
 import { Game, Player } from './game';
 import { Action, ActCtx, MODELS, getModel, pickStyles, setModel } from './bots';
-import { HandRec, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
+import { AGGR_GRADES, HandRec, VPIP_GRADES, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -380,10 +380,12 @@ $('bNext').addEventListener('click', () => {
 });
 function showStats(): void {
   const s = summarize(loadStats());
+  const dots = (g: number) => '●'.repeat(g + 1) + '○'.repeat(4 - g);
   const signed = (n: number) => (n > 0 ? '+' : '') + fmt(n);
   const pct = (x: number | null) => (x === null ? '–' : `${Math.round(x * 100)} %`);
   $('statsBody').innerHTML = s
     ? `${s.name ? `<p class="name">${s.name}</p>` : ''}<p class="label">${s.label}</p>
+<div class="grades"><span>Spielweite</span><span class="dots" title="${VPIP_GRADES[s.vpipGrade]}">${dots(s.vpipGrade)}</span><span>Aggression</span><span class="dots" title="${AGGR_GRADES[s.aggrGrade]}">${dots(s.aggrGrade)}</span></div>
 <dl>
 <dt>Hände</dt><dd>${s.hands}</dd>
 <dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)}</dd>

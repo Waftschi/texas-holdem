@@ -36,13 +36,18 @@ Der Button **Statistik** in der Kopfzeile zeigt eine Auswertung des eigenen Spie
 | **PFR** (PreFlop Raise) | Anteil der Hände, in denen du preflop erhöhst. Immer höchstens so hoch wie VPIP. Ein großer Abstand heißt: du gehst meist nur mit. |
 | **BB** (Big Blind) | Der größere erzwungene Einsatz. „Ø pro Hand“ ist dein durchschnittlicher Gewinn oder Verlust pro Hand in Big Blinds, unabhängig von den steigenden Blinds. |
 | **Bilanz** | Gewonnene minus verlorene Chips über alle gespeicherten Hände, dazu Anzahl der Hände im Plus und Minus sowie größter Gewinn und Verlust in einer Hand. Ältere Datensätze ohne Chip-Angabe zählen mit 0. |
-| **Aggression** | (Bets + Raises) ÷ Calls. Über 1,5 aggressiv, unter 0,8 passiv. |
+| **Aggression** | (Bets + Raises) ÷ Calls, in fünf Graden: sehr passiv (unter 0,5), passiv (bis 0,9), solide (bis 1,6), aggressiv (bis 2,6), sehr aggressiv (darüber). |
 | **Fold gegen Einsatz** | Wie oft du foldest, wenn du einem Einsatz gegenüberstehst. |
 | **Showdown** | Anteil der Hände, die du bis zum Aufdecken spielst. |
 | **Pot-Odds** | Preis des Calls im Verhältnis zum Pot: `zu zahlen / (Pot + zu zahlen)`. Ein Call lohnt sich, wenn die Gewinnchance (Equity) höher ist. Darauf beruhen die Hinweise zu schlechten Calls und Folds. Mit eingeschalteter **Gewinnchance** steht der Wert bei einem offenen Einsatz neben deiner Gewinnchance („Gewinnchance 45 % · Pot-Odds 25 %“): Liegt die Gewinnchance darüber, lohnt sich der Call rechnerisch. |
 | **Equity** | Deine Gewinnchance in der Hand, per Simulation geschätzt. |
 
-Aus VPIP und Aggression entsteht ein Spielertyp mit Namen (z. B. „Scharfschütze“ für straff · aggressiv, „Fels“ für straff · passiv, „Draufgänger“ für locker · aggressiv) und einem Etikett (z. B. „straff · aggressiv“) und einige Tipps. Unter 20 Händen zeigt die Statistik nur an, dass noch zu wenig Daten vorliegen. Der Code steht in `holdem/src/stats.ts`.
+Aus VPIP und Aggression entsteht dein Spielertyp, in je fünf Graden:
+
+- **Spielweite (VPIP):** sehr straff (unter 18 %), straff (bis 28 %), ausgewogen (bis 42 %), locker (bis 55 %), sehr locker (darüber).
+- **Aggression:** sehr passiv, passiv, solide, aggressiv, sehr aggressiv (Grenzen siehe oben).
+
+Beide Grade ergeben 25 Typen mit Namen, zum Beispiel „Fels“ (straff · passiv), „Scharfschütze“ (straff · aggressiv), „Draufgänger“ (locker · aggressiv) oder „Maniac“ (sehr locker · sehr aggressiv). In der Statistik siehst du Name, Etikett und beide Grade als Punkte (●●●○○) plus einige Tipps. Unter 20 Händen zeigt die Statistik nur an, dass noch zu wenig Daten vorliegen. Der Code steht in `holdem/src/stats.ts`.
 
 ## Entwicklung
 

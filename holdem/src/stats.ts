@@ -56,25 +56,28 @@ export interface Summary {
   worst: number; // größter Verlust in einer Hand
   badCalls: number;
   badFolds: number;
+  vpipGrade: number; // 0 (sehr straff) bis 4 (sehr locker)
+  aggrGrade: number; // 0 (sehr passiv) bis 4 (sehr aggressiv)
   name: string; // ein Name für den Spielertyp, z. B. „Fels“
   label: string;
   tips: string[];
 }
 
-const NAMES: Record<string, string> = {
-  'locker|aggressiv': 'Draufgänger',
-  'locker|solide': 'Zocker',
-  'locker|passiv': 'Mitläufer',
-  'locker|': 'Hitzkopf',
-  'ausgewogen|aggressiv': 'Hai',
-  'ausgewogen|solide': 'Allrounder',
-  'ausgewogen|passiv': 'Beobachter',
-  'ausgewogen|': 'Allrounder',
-  'straff|aggressiv': 'Scharfschütze',
-  'straff|solide': 'Stratege',
-  'straff|passiv': 'Fels',
-  'straff|': 'Fels',
-};
+/** Stufen für Spielweite (VPIP) und Aggression; die Grenzen trennen je fünf Grade. */
+export const VPIP_GRADES = ['sehr straff', 'straff', 'ausgewogen', 'locker', 'sehr locker'];
+export const AGGR_GRADES = ['sehr passiv', 'passiv', 'solide', 'aggressiv', 'sehr aggressiv'];
+const VPIP_BOUNDS = [0.18, 0.28, 0.42, 0.55];
+const AGGR_BOUNDS = [0.5, 0.9, 1.6, 2.6];
+const grade = (x: number, bounds: number[]): number => bounds.filter((b) => x >= b).length;
+
+/** Spielertyp je Zeile = Spielweite (sehr straff … sehr locker), je Spalte = Aggression (sehr passiv … sehr aggressiv). */
+const NAMES: string[][] = [
+  ['Eisberg', 'Mönch', 'Uhrmacher', 'Falke', 'Assassine'],
+  ['Wächter', 'Fels', 'Stratege', 'Scharfschütze', 'Jäger'],
+  ['Schatten', 'Beobachter', 'Allrounder', 'Hai', 'Haudegen'],
+  ['Tourist', 'Mitläufer', 'Zocker', 'Draufgänger', 'Pirat'],
+  ['Sammler', 'Stammgast', 'Hasardeur', 'Berserker', 'Maniac'],
+];
 
 export function loadStats(): HandRec[] {
   try {
@@ -127,6 +130,8 @@ export function summarize(recs: HandRec[]): Summary | null {
     worst: Math.min(0, ...recs.map((r) => r.chips ?? 0)),
     badCalls: sum((r) => r.badCalls),
     badFolds: sum((r) => r.badFolds),
+    vpipGrade: 0,
+    aggrGrade: 0,
     name: '',
     label: '',
     tips: [],
@@ -136,14 +141,16 @@ export function summarize(recs: HandRec[]): Summary | null {
     s.tips.push('Ab etwa 20 Händen werden die Zahlen aussagekräftig.');
     return s;
   }
-  const loose = s.vpip > 0.4 ? 'locker' : s.vpip < 0.2 ? 'straff' : 'ausgewogen';
-  const agg = s.aggr === null ? '' : s.aggr >= 1.5 ? 'aggressiv' : s.aggr < 0.8 ? 'passiv' : 'solide';
-  s.label = [loose, agg].filter(Boolean).join(' · ');
-  s.name = NAMES[`${loose}|${agg}`];
-  if (s.vpip > 0.4) s.tips.push('Du spielst viele Hände. Schwache Starthände früh wegzuwerfen spart Chips.');
-  if (s.vpip < 0.2) s.tips.push('Du spielst sehr wenige Hände. In später Position darfst du mehr mitgehen.');
+  const bets = sum((r) => r.bets);
+  // Ohne einen einzigen Call lässt sich das Verhältnis nicht berechnen: wer setzt, gilt als sehr aggressiv, sonst als sehr passiv.
+  s.vpipGrade = grade(s.vpip, VPIP_BOUNDS);
+  s.aggrGrade = s.aggr !== null ? grade(s.aggr, AGGR_BOUNDS) : bets > 0 ? 4 : 0;
+  s.label = `${VPIP_GRADES[s.vpipGrade]} · ${AGGR_GRADES[s.aggrGrade]}`;
+  s.name = NAMES[s.vpipGrade][s.aggrGrade];
+  if (s.vpipGrade >= 3) s.tips.push('Du spielst viele Hände. Schwache Starthände früh wegzuwerfen spart Chips.');
+  if (s.vpipGrade === 0) s.tips.push('Du spielst sehr wenige Hände. In später Position darfst du mehr mitgehen.');
   if (s.vpip - s.pfr > 0.2) s.tips.push('Du gehst oft nur mit, statt zu erhöhen. Mit guten Händen öfter selbst erhöhen.');
-  if (s.aggr !== null && s.aggr < 0.8) s.tips.push('Du callst mehr, als du setzt. Aggressiveres Spiel setzt Gegner unter Druck.');
+  if (s.aggrGrade <= 1) s.tips.push('Du callst mehr, als du setzt. Aggressiveres Spiel setzt Gegner unter Druck.');
   if (s.foldTo !== null && s.foldTo > 0.6) s.tips.push('Du foldest oft gegen Einsätze. Gegner können dich leicht ausbluffen.');
   if (s.foldTo !== null && s.foldTo < 0.25) s.tips.push('Du foldest selten gegen Einsätze. Gegen große Einsätze mit schwachen Händen ruhig aussteigen.');
   if (s.badCalls > n * 0.1) s.tips.push(`${s.badCalls}× hast du gecallt, obwohl die Gewinnchance klar unter den Pot-Odds lag.`);
