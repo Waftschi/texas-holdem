@@ -1,5 +1,5 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
-import { Game, Player } from './game';
+import { Game, Player, START_STACK } from './game';
 import { Action, ActCtx, MODELS, getModel, pickStyles, setModel } from './bots';
 import { AGGR_GRADES, HandRec, VPIP_GRADES, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
@@ -9,6 +9,10 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
 const r5 = (n: number): number => Math.round(n / 5) * 5;
 
 let game: Game;
+type Mode = 'tournament' | 'cash';
+const MODE_KEY = 'holdem.mode.v1';
+let mode: Mode = 'tournament';
+let runId = 0; // erhöht sich bei jedem neuen Spiel; alte Spielschleifen hören dann auf
 let humanCtx: ActCtx | null = null;
 let humanResolve: ((a: Action) => void) | null = null;
 let nextResolve: (() => void) | null = null;
@@ -158,6 +162,8 @@ function renderDock(): void {
     acts.hidden = true;
     panel.hidden = true;
     nextRow.hidden = false;
+    nextRow.classList.toggle('cash', g.mode === 'cash');
+    $('bLeave').hidden = g.mode !== 'cash';
     status.textContent = `Hand ${g.handNo} beendet`;
     return;
   }
@@ -256,7 +262,14 @@ function render(): void {
     eqVal = null;
   }
   $('blinds').textContent = `Blinds ${g.sb}/${g.bb}`;
-  $('handno').textContent = g.handNo > 0 ? `Hand ${g.handNo}` : 'Gleich geht’s los';
+  const me = g.players[0];
+  const balance = me.stack + me.total - me.buyins * START_STACK;
+  $('handno').textContent =
+    g.handNo === 0
+      ? 'Gleich geht’s los'
+      : g.mode === 'cash'
+        ? `Cash · Hand ${g.handNo} · Bilanz ${balance > 0 ? '+' : ''}${fmt(balance)}`
+        : `Hand ${g.handNo}`;
   $('street').textContent = streetLabel();
 
   let board = '';
@@ -274,9 +287,15 @@ function render(): void {
   const over = $('over');
   over.hidden = !g.over;
   if (g.over) {
-    $('overTitle').textContent = g.over === 'win' ? 'Du hast alle Chips.' : 'Deine Chips sind weg.';
-    $('overSub').textContent =
-      g.over === 'win' ? `Alle drei Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
+    if (g.over === 'leave') {
+      const extra = me.buyins > 1 ? `, ${me.buyins - 1}× nachgekauft` : '';
+      $('overTitle').textContent = `Bilanz ${balance > 0 ? '+' : ''}${fmt(balance)} Chips`;
+      $('overSub').textContent = `Tisch verlassen nach ${g.handNo} Händen${extra}.`;
+    } else {
+      $('overTitle').textContent = g.over === 'win' ? 'Du hast alle Chips.' : 'Deine Chips sind weg.';
+      $('overSub').textContent =
+        g.over === 'win' ? `Alle drei Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
+    }
   }
   maybeEquity();
 }
@@ -296,27 +315,33 @@ function waitNext(): Promise<void> {
 }
 
 async function run(): Promise<void> {
+  const id = ++runId;
   const g = new Game(
     {
-      update: () => render(),
+      update: () => id === runId && render(),
       sleep: (ms) => new Promise((r) => setTimeout(r, ms * speed())),
-      askHuman,
+      askHuman: (c) => (id === runId ? askHuman(c) : new Promise<Action>(() => {})),
     },
     pickStyles(),
+    mode,
   );
   game = g;
   humanCtx = null;
   humanResolve = null;
+  nextResolve = null;
+  raiseOpen = false;
   render();
   await new Promise((r) => setTimeout(r, 500));
-  while (!g.over) {
+  while (!g.over && id === runId) {
     rec = newRec();
     const before = g.players[0].stack;
+    const buyinsBefore = g.players[0].buyins;
     await g.playHand();
+    if (id !== runId) return;
     const me = g.players[0];
-    rec.chips = me.stack - before;
+    rec.chips = me.stack - before - (me.buyins - buyinsBefore) * START_STACK; // ein Rebuy ist kein Gewinn
     rec.net = rec.chips / g.bb;
-    rec.win = me.stack > before ? 1 : 0;
+    rec.win = rec.chips > 0 ? 1 : 0;
     rec.sd = g.showdownDone && !me.folded ? 1 : 0;
     addHand(rec);
     saveLog(g.history);
@@ -407,6 +432,35 @@ function showStats(): void {
 }
 const MODEL_KEY = 'holdem.model.v1';
 
+function initMode(): void {
+  try {
+    mode = localStorage.getItem(MODE_KEY) === 'cash' ? 'cash' : 'tournament';
+  } catch {
+    /* Speicher gesperrt: Turnier */
+  }
+  const sel = $<HTMLSelectElement>('modeSel');
+  sel.value = mode;
+  sel.addEventListener('change', () => {
+    const next = sel.value as Mode;
+    const running = game && game.handNo > 0 && !game.over;
+    if (running && !confirm('Neues Spiel im anderen Modus starten? Das laufende Spiel geht verloren.')) {
+      sel.value = mode;
+      return;
+    }
+    mode = next;
+    try {
+      localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      /* ignorieren */
+    }
+    $('stats').hidden = true;
+    seen.clear();
+    lastHand = -1;
+    run();
+  });
+}
+initMode();
+
 function initModel(): void {
   try {
     setModel(localStorage.getItem(MODEL_KEY) || '');
@@ -448,6 +502,14 @@ $('bClear').addEventListener('click', () => {
   if (!confirm('Alle gespeicherten Statistiken löschen?')) return;
   if (clearStats()) showStats();
   else alert('Löschen nicht möglich: Der Browser-Speicher ist gesperrt.');
+});
+$('bLeave').addEventListener('click', () => {
+  if (guarded(armedAt) || !nextResolve) return;
+  const r = nextResolve;
+  nextResolve = null;
+  game.over = 'leave';
+  render();
+  r();
 });
 $('bNew').addEventListener('click', () => {
   seen.clear();

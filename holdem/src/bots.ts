@@ -4,6 +4,7 @@ import { chen, equity } from './poker';
 import { ActCtx, Action, BOT_ITERS, Style, clampRaise, position, potRaise } from './botkit';
 import { decideClassic } from './models/classic';
 import { decideImproved } from './models/improved';
+import { decidePro } from './models/pro';
 
 export type { Action, ActCtx, Style } from './botkit';
 export { BOT_ITERS } from './botkit';
@@ -99,6 +100,12 @@ export interface Model {
 
 export const MODELS: Model[] = [
   {
+    id: 'pro',
+    name: 'Pro Spieler',
+    desc: 'Verfeinert und tückisch: variable Einsatzgrößen, Slowplay, Check-Raise, Semi-Bluffs und Bluffs nach Position. Starke Hände und Bluffs sehen gleich aus.',
+    decide: decidePro,
+  },
+  {
     id: 'improved',
     name: 'Verbessert',
     desc: 'Spielt mit wenigen Gegnern deutlich mehr Hände und schiebt bei kurzem Stack früher All-in.',
@@ -112,7 +119,7 @@ export const MODELS: Model[] = [
   },
 ];
 
-let active: Model = MODELS[0];
+let active: Model = MODELS.find((m) => m.id === 'improved')!;
 
 export const getModel = (): Model => active;
 

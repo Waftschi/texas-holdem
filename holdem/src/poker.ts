@@ -28,6 +28,9 @@ export function newDeck(): number[] {
 const BASE4 = 13 ** 4;
 const BASE5 = 13 ** 5;
 
+/** Handkategorie eines Scores: 0 Hohe Karte, 1 Paar, 2 Zwei Paare, … 8 Straight Flush. */
+export const handCategory = (score: number): number => Math.floor(score / BASE5);
+
 export const HAND_NAMES = [
   'Hohe Karte',
   'Paar',

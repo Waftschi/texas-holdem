@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit -p .",
     "build": "node holdem/build.mjs && node holdem/build-pwa.mjs && cp dist/pages/index.html index.html",
     "smoke": "node holdem/build.mjs && node holdem/test/ui-smoke.mjs dist/holdem.html",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "bench": "node holdem/test/bench.mjs"
   },
   "keywords": [],
   "author": "",

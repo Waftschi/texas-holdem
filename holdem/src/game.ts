@@ -28,6 +28,7 @@ export interface Player {
   won: number;
   lvl: number; // wie stark der Spieler in dieser Runde gesetzt hat (0 nichts, 1 gesetzt, 2 groß)
   preRaiser: boolean; // hat preflop erhöht
+  buyins: number; // Anzahl Buy-ins (Cash Game: nach jedem Pleitegehen +1)
   stat: { faced: number; folded: number; bets: number; acts: number }; // Verhalten über das ganze Spiel
 }
 
@@ -58,6 +59,7 @@ function mk(id: number, name: string, human: boolean, style?: Style): Player {
     won: 0,
     lvl: 0,
     preRaiser: false,
+    buyins: 1,
     stat: { faced: 0, folded: 0, bets: 0, acts: 0 },
   };
 }
@@ -78,7 +80,7 @@ export class Game {
   handOver = false;
   showdownDone = false;
   winCards = new Set<number>();
-  over: 'win' | 'lose' | null = null;
+  over: 'win' | 'lose' | 'leave' | null = null;
   /** Protokoll der letzten Hände: jede Aktion mit Einsatz, Stack und Pot, zum Nachprüfen der Chips. */
   history: { no: number; lines: string[] }[] = [];
   private lines: string[] = [];
@@ -86,6 +88,7 @@ export class Game {
   constructor(
     private hooks: Hooks,
     styles: Style[],
+    readonly mode: 'tournament' | 'cash' = 'tournament',
   ) {
     this.players = [mk(0, 'Du', true), ...styles.map((s, i) => mk(i + 1, s.name, false, s))];
     this.dealer = this.players.length - 1;
@@ -255,13 +258,20 @@ export class Game {
   async playHand(): Promise<void> {
     const ps = this.players;
     this.handNo++;
-    const level = Math.min(4, Math.floor((this.handNo - 1) / HANDS_PER_LEVEL));
+    // Turnier: Blinds steigen. Cash Game: feste Blinds, wer pleite ist, kauft wieder ein.
+    const level = this.mode === 'cash' ? 0 : Math.min(4, Math.floor((this.handNo - 1) / HANDS_PER_LEVEL));
     this.sb = 10 * 2 ** level;
     this.bb = this.sb * 2;
+    const rebuyers = this.mode === 'cash' ? ps.filter((p) => p.stack <= 0) : [];
+    for (const p of rebuyers) {
+      p.stack = START_STACK;
+      p.buyins++;
+    }
     this.lines = [];
     this.history.push({ no: this.handNo, lines: this.lines });
     if (this.history.length > 30) this.history.shift();
     this.note(`Start: ${this.stacks()} (Summe ${this.players.reduce((t, p) => t + p.stack, 0)})`);
+    if (rebuyers.length) this.note(`Rebuy: ${rebuyers.map((p) => p.name).join(', ')} (je ${START_STACK})`);
     for (const p of ps) {
       p.hole = [];
       p.bet = 0;
@@ -306,6 +316,7 @@ export class Game {
     this.currentBet = Math.max(...ps.map((p) => p.bet));
     this.note(`Blinds ${this.sb}/${this.bb}: ${ps[sbI].name} SB ${ps[sbI].bet}, ${ps[bbI].name} BB ${ps[bbI].bet}`);
     this.message = level > 0 && (this.handNo - 1) % HANDS_PER_LEVEL === 0 ? `Blinds steigen auf ${this.sb}/${this.bb}` : `Hand ${this.handNo}`;
+    if (rebuyers.length) this.message += ` · ${rebuyers.map((p) => (p.human ? 'Du kaufst' : `${p.name} kauft`)).join(', ')} nach`;
     this.u();
     await this.hooks.sleep(800);
 
@@ -429,10 +440,14 @@ export class Game {
       p.total = 0;
     }
     const busted = ps.filter((p) => !p.out && p.stack === 0);
-    for (const p of busted) p.out = true;
-    if (busted.length) this.message += `  |  ${busted.map((p) => (p.human ? 'Du bist raus' : `${p.name} ist raus`)).join(', ')}`;
-    if (ps[0].out) this.over = 'lose';
-    else if (ps.slice(1).every((p) => p.out)) this.over = 'win';
+    if (this.mode === 'tournament') {
+      for (const p of busted) p.out = true;
+      if (busted.length) this.message += `  |  ${busted.map((p) => (p.human ? 'Du bist raus' : `${p.name} ist raus`)).join(', ')}`;
+      if (ps[0].out) this.over = 'lose';
+      else if (ps.slice(1).every((p) => p.out)) this.over = 'win';
+    } else if (busted.length) {
+      this.message += `  |  ${busted.map((p) => (p.human ? 'Du bist pleite' : `${p.name} ist pleite`)).join(', ')}`;
+    }
     this.toAct = -1;
     this.handOver = true;
     this.note(`Ende: ${this.message}`);

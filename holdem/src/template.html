@@ -34,6 +34,7 @@
   }
 
   *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -187,7 +188,8 @@
   .btn.primary:hover:not(:disabled) { background: #e0b55a; }
   .btn.fold { color: var(--bad); }
   .acts { display: grid; grid-template-columns: 1fr 1.2fr 1.4fr; gap: 8px; }
-  .nextrow { display: grid; }
+  .nextrow { display: grid; gap: 8px; }
+  .nextrow.cash { grid-template-columns: 1.6fr 1fr; }
 
   /* Ende */
   .over { position: absolute; inset: 0; z-index: 10; border-radius: 26px; display: grid; place-content: safe center; justify-items: center; gap: 12px; text-align: center; padding: 24px; overflow: auto; background: rgba(6,14,10,.84); }
@@ -272,6 +274,14 @@
       <h2>Dein Spiel</h2>
       <div id="statsBody"></div>
       <div class="model">
+        <label for="modeSel">Spielmodus</label>
+        <select id="modeSel">
+          <option value="tournament">Turnier (Blinds steigen)</option>
+          <option value="cash">Cash Game (feste Blinds, Rebuy)</option>
+        </select>
+        <p class="hint">Turnier: wer alle Chips verliert, scheidet aus. Cash Game: feste Blinds 10/20, bei 0 Chips kaufst du automatisch für 1000 nach. Tisch verlassen zeigt deine Bilanz.</p>
+      </div>
+      <div class="model">
         <label for="modelSel">Bot-Modell</label>
         <select id="modelSel"></select>
         <p class="hint" id="modelDesc"></p>
@@ -318,6 +328,7 @@
     </div>
     <div class="nextrow" id="nextRow" hidden>
       <button class="btn primary" id="bNext" type="button">Nächste Hand</button>
+      <button class="btn" id="bLeave" type="button" hidden>Tisch verlassen</button>
     </div>
   </footer>
 </div>
