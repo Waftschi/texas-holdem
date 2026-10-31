@@ -123,11 +123,18 @@ function trapper(ctx: ActCtx, st: Style): Action {
 export const EXTRA_STYLES: Style[] = [
   { name: 'Bruno', desc: 'greift an', loose: 2.5, agg: 0.9, bluff: 0.3, brain: lag },
   { name: 'Luna', desc: 'nur Premiumhände', loose: -1, agg: 0.6, bluff: 0, brain: rock },
-  { name: 'Kalle', desc: 'hat einen sitzen', loose: 4, agg: 0.7, bluff: 0.3, brain: drunk },
+  { name: 'Kalle', desc: 'hat einen sitzen', loose: 4, agg: 0.7, bluff: 0.3, brain: drunk, bedtime: 'geht ins Bett' },
   { name: 'Ines', desc: 'legt Fallen', loose: 1, agg: 0.3, bluff: 0.05, brain: trapper },
 ];
 
 /** Zufällige, verschiedene Bots aus dem ganzen Pool. */
+/** Ein Charakter, der gerade nicht am Tisch sitzt, als Ersatz für einen, der ins Bett gegangen ist. */
+export function pickReplacement(seated: Style[]): Style | null {
+  const taken = new Set(seated.map((s) => s.name));
+  const free = [...STYLES, ...EXTRA_STYLES].filter((s) => !taken.has(s.name) && !s.bedtime);
+  return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+}
+
 export function pickStyles(n = 4): Style[] {
   const pool = [...STYLES, ...EXTRA_STYLES];
   for (let i = pool.length - 1; i > 0; i--) {

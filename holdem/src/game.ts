@@ -36,7 +36,12 @@ export interface Hooks {
   update(): void;
   sleep(ms: number): Promise<void>;
   askHuman(ctx: ActCtx): Promise<Action>;
+  /** Ersatz für einen Bot, der ins Bett gegangen ist (nur Cash Game); null = keiner, dann kauft er nach. */
+  newPlayer?(seated: Style[]): Style | null;
 }
+
+/** Text für einen Spieler, der alles verloren hat; manche Bots gehen dann ins Bett. */
+const gone = (p: Player, text: string): string => (p.human ? `Du ${text.replace('ist', 'bist')}` : `${p.name} ${p.style?.bedtime ?? text}`);
 
 function mk(id: number, name: string, human: boolean, style?: Style): Player {
   return {
@@ -262,15 +267,28 @@ export class Game {
     const level = this.mode === 'cash' ? 0 : Math.min(4, Math.floor((this.handNo - 1) / HANDS_PER_LEVEL));
     this.sb = 10 * 2 ** level;
     this.bb = this.sb * 2;
-    const rebuyers = this.mode === 'cash' ? ps.filter((p) => p.stack <= 0) : [];
-    for (const p of rebuyers) {
+    const rebuyers: Player[] = [];
+    const swaps: string[] = [];
+    for (const p of this.mode === 'cash' ? ps.filter((q) => q.stack <= 0) : []) {
+      const next = p.style?.bedtime ? this.hooks.newPlayer?.(ps.flatMap((q) => (q.style ? [q.style] : []))) : null;
+      if (next) {
+        // Ein Bot geht ins Bett, ein neuer Charakter setzt sich auf seinen Platz.
+        swaps.push(`${p.name} ${p.style!.bedtime}, ${next.name} setzt sich dazu`);
+        p.name = next.name;
+        p.style = next;
+        p.buyins = 1;
+        p.stat = { faced: 0, folded: 0, bets: 0, acts: 0 };
+      } else {
+        p.buyins++;
+        rebuyers.push(p);
+      }
       p.stack = START_STACK;
-      p.buyins++;
     }
     this.lines = [];
     this.history.push({ no: this.handNo, lines: this.lines });
     if (this.history.length > 30) this.history.shift();
     this.note(`Start: ${this.stacks()} (Summe ${this.players.reduce((t, p) => t + p.stack, 0)})`);
+    for (const w of swaps) this.note(w);
     if (rebuyers.length) this.note(`Rebuy: ${rebuyers.map((p) => p.name).join(', ')} (je ${START_STACK})`);
     for (const p of ps) {
       p.hole = [];
@@ -317,6 +335,7 @@ export class Game {
     this.note(`Blinds ${this.sb}/${this.bb}: ${ps[sbI].name} SB ${ps[sbI].bet}, ${ps[bbI].name} BB ${ps[bbI].bet}`);
     this.message = level > 0 && (this.handNo - 1) % HANDS_PER_LEVEL === 0 ? `Blinds steigen auf ${this.sb}/${this.bb}` : `Hand ${this.handNo}`;
     if (rebuyers.length) this.message += ` · ${rebuyers.map((p) => (p.human ? 'Du kaufst' : `${p.name} kauft`)).join(', ')} nach`;
+    if (swaps.length) this.message += ` · ${swaps.join(' · ')}`;
     this.u();
     await this.hooks.sleep(800);
 
@@ -442,11 +461,11 @@ export class Game {
     const busted = ps.filter((p) => !p.out && p.stack === 0);
     if (this.mode === 'tournament') {
       for (const p of busted) p.out = true;
-      if (busted.length) this.message += `  |  ${busted.map((p) => (p.human ? 'Du bist raus' : `${p.name} ist raus`)).join(', ')}`;
+      if (busted.length) this.message += `  |  ${busted.map((p) => gone(p, 'ist raus')).join(', ')}`;
       if (ps[0].out) this.over = 'lose';
       else if (ps.slice(1).every((p) => p.out)) this.over = 'win';
     } else if (busted.length) {
-      this.message += `  |  ${busted.map((p) => (p.human ? 'Du bist pleite' : `${p.name} ist pleite`)).join(', ')}`;
+      this.message += `  |  ${busted.map((p) => gone(p, 'ist pleite')).join(', ')}`;
     }
     this.toAct = -1;
     this.handOver = true;

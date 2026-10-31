@@ -1,6 +1,6 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
 import { Game, Player, START_STACK } from './game';
-import { Action, ActCtx, MODELS, getModel, pickStyles, setModel } from './bots';
+import { Action, ActCtx, MODELS, getModel, pickReplacement, pickStyles, setModel } from './bots';
 import { AGGR_GRADES, HandRec, VPIP_GRADES, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
@@ -324,6 +324,7 @@ async function run(): Promise<void> {
       update: () => id === runId && render(),
       sleep: (ms) => new Promise((r) => setTimeout(r, ms * speed())),
       askHuman: (c) => (id === runId ? askHuman(c) : new Promise<Action>(() => {})),
+      newPlayer: pickReplacement,
     },
     pickStyles(seats - 1),
     mode,

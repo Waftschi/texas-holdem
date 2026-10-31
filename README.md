@@ -1,6 +1,6 @@
 # Hold'em Tisch
 
-Texas Hold'em gegen drei Bots, als einzelne HTML-Seite (PWA). Bei jedem neuen Spiel werden die drei Gegner zufällig aus sechs Charakteren gezogen.
+Texas Hold'em gegen vier Bots (einstellbar auf drei), als einzelne HTML-Seite (PWA). Bei jedem neuen Spiel werden die Gegner zufällig aus sieben Charakteren gezogen. Die Tischgröße (4 oder 5 Spieler) stellst du unter **Statistik → Tischgröße** ein.
 
 ## Charaktere
 
@@ -12,8 +12,9 @@ Texas Hold'em gegen drei Bots, als einzelne HTML-Seite (PWA). Bei jedem neuen Sp
 | **Bruno** | greift an | Spielt viele Hände, erhöht oft, setzt Semi-Bluffs und blufft, gibt aber auf, wenn Widerstand kommt und die Gewinnchance fehlt. |
 | **Luna** | nur Premiumhände | Spielt nur starke Starthände und setzt nur für Value. Blufft nie und foldet ohne klaren Vorteil. |
 | **Ines** | legt Fallen | Spielt starke Hände passiv (Check/Call) und schlägt später zu, z. B. per Check-Raise. |
+| **Kalle** | hat einen sitzen | Der Betrunkene: schaut kaum auf seine Karten, geht fast immer mit, setzt und erhöht in wilden Größen und schiebt gelegentlich versehentlich alles rein. Im Turnier „geht er ins Bett“, wenn er pleite ist. Im Cash Game geht er ebenfalls ins Bett und ein anderer Charakter setzt sich auf seinen Platz. |
 
-Marta, Rico und Otto nutzen dieselbe Entscheidungslogik mit unterschiedlichen Parametern (`loose`, `agg`, `bluff`). Bruno, Luna und Ines haben jeweils eine eigene Strategie. Der Code steht in `holdem/src/bots.ts`.
+Marta, Rico und Otto nutzen dieselbe Entscheidungslogik mit unterschiedlichen Parametern (`loose`, `agg`, `bluff`). Bruno, Luna, Kalle und Ines haben jeweils eine eigene Strategie. Der Code steht in `holdem/src/bots.ts`.
 
 ## Spielmodi
 
@@ -36,7 +37,7 @@ Die Entscheidungslogik von Marta, Rico und Otto ist als Modell austauschbar. Unt
 | **Verbessert** (Standard) | Spielt mit wenigen Gegnern deutlich mehr Hände und schiebt bei kurzem Stack früher All-in. |
 | **Klassisch** | Die ursprüngliche Logik: feste Starthand-Schwellen, unabhängig von der Spielerzahl. |
 
-Bruno, Luna und Ines haben je eine eigene Strategie und bleiben vom Modell unberührt. Ein neues Modell besteht aus einer Datei in `holdem/src/models/` mit einer Funktion `(ctx, style) => Action` und einem Eintrag in `MODELS` (`holdem/src/bots.ts`). Gemeinsame Typen und Hilfsfunktionen stehen in `holdem/src/botkit.ts`.
+Bruno, Luna, Kalle und Ines haben je eine eigene Strategie und bleiben vom Modell unberührt. Ein neues Modell besteht aus einer Datei in `holdem/src/models/` mit einer Funktion `(ctx, style) => Action` und einem Eintrag in `MODELS` (`holdem/src/bots.ts`). Gemeinsame Typen und Hilfsfunktionen stehen in `holdem/src/botkit.ts`.
 
 ## Statistik
 

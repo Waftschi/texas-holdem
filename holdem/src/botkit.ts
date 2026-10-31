@@ -34,6 +34,7 @@ export interface Style {
   agg: number; // erhöht statt mitzugehen
   bluff: number; // Bluff-Häufigkeit
   brain?: (ctx: ActCtx, st: Style) => Action; // eigene Entscheidungslogik statt decide
+  bedtime?: string; // nach dem Pleitegehen, z. B. „geht ins Bett“: im Cash Game kauft er nicht nach, ein neuer Spieler nimmt seinen Platz
 }
 
 export const BOT_ITERS = { n: 500 };
