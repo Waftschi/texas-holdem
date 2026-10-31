@@ -12,6 +12,8 @@ let game: Game;
 type Mode = 'tournament' | 'cash';
 const MODE_KEY = 'holdem.mode.v1';
 let mode: Mode = 'tournament';
+const SEATS_KEY = 'holdem.seats.v1';
+let seats = 5; // Spieler am Tisch inklusive dir (4 oder 5)
 let runId = 0; // erhöht sich bei jedem neuen Spiel; alte Spielschleifen hören dann auf
 let humanCtx: ActCtx | null = null;
 let humanResolve: ((a: Action) => void) | null = null;
@@ -280,6 +282,7 @@ function render(): void {
   $('pot').innerHTML = `${chipsHTML(collected)}<span class="amt">Pot ${fmt(g.pot)}</span>`;
   $('msg').textContent = g.message;
 
+  $('opps').className = g.players.length > 4 ? 'opps n4' : 'opps';
   $('opps').innerHTML = g.players.slice(1).map(seatHTML).join('');
   renderMe();
   renderDock();
@@ -294,7 +297,7 @@ function render(): void {
     } else {
       $('overTitle').textContent = g.over === 'win' ? 'Du hast alle Chips.' : 'Deine Chips sind weg.';
       $('overSub').textContent =
-        g.over === 'win' ? `Alle drei Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
+        g.over === 'win' ? `Alle ${g.players.length - 1} Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
     }
   }
   maybeEquity();
@@ -322,7 +325,7 @@ async function run(): Promise<void> {
       sleep: (ms) => new Promise((r) => setTimeout(r, ms * speed())),
       askHuman: (c) => (id === runId ? askHuman(c) : new Promise<Action>(() => {})),
     },
-    pickStyles(),
+    pickStyles(seats - 1),
     mode,
   );
   game = g;
@@ -460,6 +463,34 @@ function initMode(): void {
   });
 }
 initMode();
+
+function initSeats(): void {
+  try {
+    seats = localStorage.getItem(SEATS_KEY) === '4' ? 4 : 5;
+  } catch {
+    /* Speicher gesperrt: 5 Spieler */
+  }
+  const sel = $<HTMLSelectElement>('seatSel');
+  sel.value = String(seats);
+  sel.addEventListener('change', () => {
+    const running = game && game.handNo > 0 && !game.over;
+    if (running && !confirm('Neues Spiel mit anderer Tischgröße starten? Das laufende Spiel geht verloren.')) {
+      sel.value = String(seats);
+      return;
+    }
+    seats = Number(sel.value) === 4 ? 4 : 5;
+    try {
+      localStorage.setItem(SEATS_KEY, String(seats));
+    } catch {
+      /* ignorieren */
+    }
+    $('stats').hidden = true;
+    seen.clear();
+    lastHand = -1;
+    run();
+  });
+}
+initSeats();
 
 function initModel(): void {
   try {

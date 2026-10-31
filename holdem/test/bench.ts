@@ -20,7 +20,14 @@ const idB = process.argv[6] ?? 'improved';
 const HANDS = 300;
 
 type Brain = (c: any, s: any) => any;
-const byId = (x: string) => A.MODELS.find((m) => m.id === x)!;
+// Modell-id oder Name eines Charakters mit eigener Strategie (bruno, luna, ines).
+const byId = (x: string) => {
+  const m = A.MODELS.find((y) => y.id === x);
+  if (m) return m;
+  const c = A.EXTRA_STYLES.find((y) => y.name.toLowerCase() === x);
+  if (!c?.brain) throw new Error('Unbekanntes Modell: ' + x);
+  return { id: x, decide: c.brain };
+};
 // Misch-Modelle für Ablationstests, z. B. "pro/improved" = Preflop Pro, danach Improved.
 const model = (id: string) => {
   const [pre, post] = id.split('/');

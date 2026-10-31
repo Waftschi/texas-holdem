@@ -9,7 +9,7 @@ Texas Hold'em gegen drei Bots, als einzelne HTML-Seite (PWA). Bei jedem neuen Sp
 | **Marta** | vorsichtig | Spielt wenige Hände, erhöht mäßig und blufft selten. |
 | **Rico** | aggressiv | Spielt viele Hände, erhöht oft und blufft häufig. |
 | **Otto** | ruft viel | Geht fast jeden Einsatz mit, erhöht kaum und blufft kaum. |
-| **Bruno** | Maniac | Setzt oder erhöht in rund 70 % der Fälle, auch mit schwachen Händen, und re-raist oft. Ruft nur, wenn die Gewinnchance zu den Pot-Odds passt. |
+| **Bruno** | greift an | Spielt viele Hände, erhöht oft, setzt Semi-Bluffs und blufft, gibt aber auf, wenn Widerstand kommt und die Gewinnchance fehlt. |
 | **Luna** | nur Premiumhände | Spielt nur starke Starthände und setzt nur für Value. Blufft nie und foldet ohne klaren Vorteil. |
 | **Ines** | legt Fallen | Spielt starke Hände passiv (Check/Call) und schlägt später zu, z. B. per Check-Raise. |
 

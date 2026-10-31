@@ -84,6 +84,13 @@
   }
 
   .opps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .opps.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .opps.n4 .seat { padding: 6px 2px 5px; }
+  .opps.n4 .seat .card.sm { --cw: 29px; }
+  .opps.n4 .seat .cards { min-height: 41px; gap: 2px; }
+  .opps.n4 .nm { font-size: 13px; }
+  .opps.n4 .stk { font-size: 12px; }
+  .opps.n4 .ds { font-size: 9px; text-align: center; }
   .seat {
     min-width: 0;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -273,6 +280,14 @@
     <div class="stats-box">
       <h2>Dein Spiel</h2>
       <div id="statsBody"></div>
+      <div class="model">
+        <label for="seatSel">Tischgröße</label>
+        <select id="seatSel">
+          <option value="5">5 Spieler (du + 4 Bots)</option>
+          <option value="4">4 Spieler (du + 3 Bots)</option>
+        </select>
+        <p class="hint">Bei jedem neuen Spiel werden die Bots zufällig aus sieben Charakteren gezogen. Ein Wechsel startet ein neues Spiel.</p>
+      </div>
       <div class="model">
         <label for="modeSel">Spielmodus</label>
         <select id="modeSel">

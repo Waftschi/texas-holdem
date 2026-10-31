@@ -1,7 +1,7 @@
 // Die Bots: Spielertypen (Charaktere), Zufallsauswahl und die wählbaren Entscheidungsmodelle.
 // Marta, Rico und Otto nutzen das gewählte Modell mit eigenen Parametern; Bruno, Luna und Ines haben je eine eigene Strategie.
 import { chen, equity } from './poker';
-import { ActCtx, Action, BOT_ITERS, Style, clampRaise, position, potRaise } from './botkit';
+import { ActCtx, Action, BOT_ITERS, Style, clamp, clampRaise, position, potRaise } from './botkit';
 import { decideClassic } from './models/classic';
 import { decideImproved } from './models/improved';
 import { decidePro } from './models/pro';
@@ -15,17 +15,63 @@ export const STYLES: Style[] = [
   { name: 'Otto', desc: 'ruft viel', loose: 2.5, agg: 0.2, bluff: 0.02 },
 ];
 
-/** Bruno, der Maniac: setzt fast immer, auch mit Luft, und zwingt andere zum Folden. */
-function maniac(ctx: ActCtx, st: Style): Action {
+/** Bruno, der Angreifer: spielt viele Hände, setzt und blufft oft, gibt aber auf, wenn Widerstand kommt und die Gewinnchance fehlt. */
+function lag(ctx: ActCtx, st: Style): Action {
   const r = Math.random();
+  const pos = position(ctx);
+  const heads = ctx.nOpp === 1;
   const odds = ctx.toCall / (ctx.pot + ctx.toCall);
-  if (ctx.toCall === 0) {
-    if (ctx.canRaise && r < 0.7) return potRaise(ctx, 0.6 + Math.random() * 0.5);
-    return { type: 'check' };
+  const check: Action = { type: 'check' };
+  const call: Action = ctx.canCheck ? check : { type: 'call' };
+  const fold: Action = ctx.canCheck ? check : { type: 'fold' };
+
+  if (ctx.street === 0) {
+    const few = clamp((3 - ctx.nOpp) * 2.2, 0, 6);
+    const sc = chen(ctx.hole) + pos * 2 + few + 1.5 + (Math.random() - 0.5) * 2;
+    if (ctx.currentBet > ctx.bb) {
+      // Gegen eine Erhöhung: mit guten Händen zurückschlagen, ab und zu als Bluff, sonst nach Gewinnchance mitgehen.
+      const eq = equity(ctx.hole, [], ctx.nOpp, BOT_ITERS.n, ctx.foeLevels);
+      if (ctx.canRaise && eq * (ctx.nOpp + 1) >= 2 && r < 0.8) return clampRaise(ctx, ctx.currentBet * 3);
+      if (ctx.canRaise && pos > 0.4 && r < 0.1) return clampRaise(ctx, ctx.currentBet * 3);
+      return eq + 0.08 > odds ? call : fold;
+    }
+    if (sc >= 7 && ctx.canRaise) return clampRaise(ctx, ctx.currentBet * (2.5 + Math.random()));
+    if (sc >= 4.5 && ctx.canRaise && r < 0.6) return clampRaise(ctx, ctx.currentBet * 2.5);
+    if (pos > 0.5 && ctx.canRaise && r < 0.3) return clampRaise(ctx, ctx.currentBet * 2.5); // Steal
+    if (ctx.canCheck) return ctx.canRaise && r < 0.3 ? clampRaise(ctx, ctx.currentBet * 3) : check;
+    return ctx.toCall <= ctx.bb && r < 0.35 ? call : fold;
   }
-  if (ctx.canRaise && r < 0.35) return potRaise(ctx, 1);
+
   const eq = equity(ctx.hole, ctx.board, ctx.nOpp, BOT_ITERS.n, ctx.foeLevels);
-  return eq + 0.1 > odds ? { type: 'call' } : { type: 'fold' };
+  const eq1 = Math.pow(eq, 1 / ctx.nOpp);
+  if (ctx.toCall === 0) {
+    if (!ctx.canRaise) return check;
+    if (eq1 > 0.6) return r < 0.9 ? potRaise(ctx, 0.5 + Math.random() * 0.4) : check;
+    if (eq1 > 0.35 && r < 0.6) return potRaise(ctx, 0.5 + Math.random() * 0.3); // Semi-Bluff
+    return r < (heads ? 0.3 : 0.1) * (0.6 + pos) ? potRaise(ctx, 0.5 + Math.random() * 0.3) : check; // Bluff
+  }
+  if (eq1 > 0.85 && ctx.canRaise && r < 0.6) return potRaise(ctx, 0.8);
+  if (eq + 0.03 > odds) return { type: 'call' };
+  if (ctx.canRaise && heads && eq > 0.3 && r < 0.12) return potRaise(ctx, 0.75); // Bluff-Raise
+  return { type: 'fold' };
+}
+
+/**
+ * Kalle, der Betrunkene: schaut kaum auf seine Karten, geht fast immer mit, setzt und erhöht nach Laune in wilden Größen
+ * und schiebt gelegentlich versehentlich alles in die Mitte. Mit kurzem Stack wird er verzweifelt und schiebt öfter.
+ */
+function drunk(ctx: ActCtx, st: Style): Action {
+  const r = Math.random();
+  const desperate = ctx.stack + ctx.bet < 15 * ctx.bb;
+  const check: Action = { type: 'check' };
+  const call: Action = ctx.canCheck ? check : { type: 'call' };
+  if (ctx.canRaise && r < (desperate ? 0.1 : 0.03)) return { type: 'raise', to: ctx.maxTo }; // „Ups, alles drin“
+  if (ctx.toCall === 0) return ctx.canRaise && r < 0.35 ? potRaise(ctx, 0.3 + Math.random() * 1.7) : check;
+  // Gegen einen Einsatz: fast immer mitgehen, bei sehr großen Einsätzen gelegentlich passen.
+  const big = ctx.toCall > 0.6 * ctx.pot;
+  if (r < (big ? 0.35 : 0.12)) return { type: 'fold' };
+  if (ctx.canRaise && r > 0.82) return potRaise(ctx, 0.3 + Math.random() * 1.5);
+  return call;
 }
 
 /** Luna, der Fels: spielt nur Premiumhände, setzt nur für Value und blufft nie. */
@@ -75,13 +121,14 @@ function trapper(ctx: ActCtx, st: Style): Action {
 
 /** Weitere Spielertypen mit eigener Strategie; zusammen mit STYLES der Pool für jedes neue Spiel. */
 export const EXTRA_STYLES: Style[] = [
-  { name: 'Bruno', desc: 'Maniac', loose: 3.5, agg: 1, bluff: 0.5, brain: maniac },
+  { name: 'Bruno', desc: 'greift an', loose: 2.5, agg: 0.9, bluff: 0.3, brain: lag },
   { name: 'Luna', desc: 'nur Premiumhände', loose: -1, agg: 0.6, bluff: 0, brain: rock },
+  { name: 'Kalle', desc: 'hat einen sitzen', loose: 4, agg: 0.7, bluff: 0.3, brain: drunk },
   { name: 'Ines', desc: 'legt Fallen', loose: 1, agg: 0.3, bluff: 0.05, brain: trapper },
 ];
 
 /** Zufällige, verschiedene Bots aus dem ganzen Pool. */
-export function pickStyles(n = 3): Style[] {
+export function pickStyles(n = 4): Style[] {
   const pool = [...STYLES, ...EXTRA_STYLES];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
