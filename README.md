@@ -22,10 +22,12 @@ Unter **Statistik → Spielmodus** wählst du den Modus. Ein Wechsel startet ein
 
 | Modus | Ablauf |
 |---|---|
-| **Turnier** | Die Blinds steigen alle 10 Hände. Wer alle Chips verliert, scheidet aus. Das Spiel endet, wenn nur noch einer übrig ist. |
+| **Turnier** | Die Blinds steigen alle 10 Hände. Wer alle Chips verliert, scheidet aus. Das Spiel endet, wenn nur noch einer übrig ist. Jeder Spieler zahlt **1000 Buy-in** (so viel wie dein Start-Stack), und der Sieger bekommt den ganzen Preispool (Winner takes all). Bei 5 Spielern sind das +4000 für den Sieger und −1000 für alle anderen. |
 | **Cash Game** | Feste Blinds 10/20. Bei 0 Chips kaufst du (und jeder Bot) automatisch für 1000 nach. Mit **Tisch verlassen** (zwischen den Händen) beendest du das Spiel und siehst deine Bilanz. Die Kopfzeile zeigt die laufende Bilanz. |
 
 Die Bilanz im Cash Game ist dein Stack minus alle Buy-ins; ein Rebuy zählt in der Statistik nicht als Gewinn.
+
+In der Statistik stehen beide getrennt: die **Cash-Bilanz** (Chips aus Cash-Händen) und die **Turnier-Bilanz** (Geld aus beendeten Turnieren, mit Siegen und bestem Gewinn), dazu eine Gesamtbilanz. Ein Turnier, das du vor dem Ende abbrichst (neues Spiel, Moduswechsel, Seite neu laden), zählt nicht. Die Turnier-Bilanz wird unter `holdem.tournaments.v1` gespeichert und mit **Daten löschen** zurückgesetzt.
 
 ## Bot-Modelle
 

@@ -25,7 +25,52 @@ export function loadLog(): HandLog[] {
   }
 }
 
+const TOUR_KEY = 'holdem.tournaments.v1';
+
+/** Ein beendetes Turnier: Sieger bekommt den ganzen Preispool, alle anderen verlieren ihren Buy-in. */
+export interface TournamentRec {
+  won: number; // 1 = du hast gewonnen
+  players: number;
+  net: number; // Geld: Gewinn minus Buy-in, bei Niederlage −Buy-in
+  hands: number;
+}
+
+export interface TournamentSummary {
+  played: number;
+  wins: number;
+  net: number;
+  best: number; // bester Turniergewinn
+}
+
+export function loadTournaments(): TournamentRec[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(TOUR_KEY) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addTournament(rec: TournamentRec): void {
+  try {
+    localStorage.setItem(TOUR_KEY, JSON.stringify([...loadTournaments(), rec].slice(-500)));
+  } catch {
+    /* Speicher gesperrt oder voll: das Spiel läuft trotzdem */
+  }
+}
+
+export function summarizeTournaments(recs: TournamentRec[]): TournamentSummary | null {
+  if (recs.length === 0) return null;
+  return {
+    played: recs.length,
+    wins: recs.filter((r) => r.won).length,
+    net: recs.reduce((t, r) => t + r.net, 0),
+    best: Math.max(0, ...recs.map((r) => r.net)),
+  };
+}
+
 export interface HandRec {
+  mode?: 'tournament' | 'cash'; // fehlt bei älteren Datensätzen
   vpip: number; // 1 = freiwillig Geld in den Pot (Call oder Raise preflop)
   pfr: number; // 1 = preflop erhöht
   bets: number; // Bets und Raises in der Hand
@@ -102,6 +147,7 @@ export function clearStats(): boolean {
   try {
     localStorage.removeItem(KEY);
     localStorage.removeItem(LOG_KEY);
+    localStorage.removeItem(TOUR_KEY);
     return true;
   } catch {
     return false;
@@ -123,11 +169,12 @@ export function summarize(recs: HandRec[]): Summary | null {
     showdown: sum((r) => r.sd) / n,
     winRate: sum((r) => r.win) / n,
     bbPerHand: sum((r) => r.net) / n,
-    chips: sum((r) => r.chips ?? 0),
+    // Chip-Bilanz nur aus Cash-Händen: Turnier-Chips sind kein Geld, das Turnier-Ergebnis steht in der Turnier-Bilanz.
+    chips: sum((r) => (r.mode === 'tournament' ? 0 : (r.chips ?? 0))),
     won: recs.filter((r) => r.net > 0).length,
     lost: recs.filter((r) => r.net < 0).length,
-    best: Math.max(0, ...recs.map((r) => r.chips ?? 0)),
-    worst: Math.min(0, ...recs.map((r) => r.chips ?? 0)),
+    best: Math.max(0, ...recs.map((r) => (r.mode === 'tournament' ? 0 : (r.chips ?? 0)))),
+    worst: Math.min(0, ...recs.map((r) => (r.mode === 'tournament' ? 0 : (r.chips ?? 0)))),
     badCalls: sum((r) => r.badCalls),
     badFolds: sum((r) => r.badFolds),
     vpipGrade: 0,

@@ -3,6 +3,7 @@ import { bestHand, handName, newDeck } from './poker';
 import { Action, ActCtx, Style, decide } from './bots';
 
 export const START_STACK = 1000;
+export const BUY_IN = START_STACK; // Turnier: Buy-in je Spieler, der Sieger bekommt den ganzen Preispool
 export const HANDS_PER_LEVEL = 10;
 
 export type Street = 'idle' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown';

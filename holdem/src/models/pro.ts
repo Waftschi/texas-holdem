@@ -44,7 +44,7 @@ function preflop(ctx: ActCtx, st: Style): Action {
       // Bluff-Reraise mit Blocker (Ass) in Position gegen Spieler, die viel folden.
       if (hasAce && pos > 0.5 && r < 0.09 * m.bluff * clamp(ctx.foldRate / 0.35, 0.5, 2)) return raise(between(2.7, 3.4));
     }
-    return eq + 0.09 + pos * 0.03 > odds ? call : fold;
+    return eq + 0.05 + pos * 0.03 > odds ? call : fold;
   }
 
   if (s >= 9) return ctx.canRaise ? raise(between(2.2, 3.2)) : call;
@@ -94,7 +94,7 @@ function postflop(ctx: ActCtx, st: Style): Action {
   if (eq1 > 0.9 && ctx.canRaise) return mix(0.7) ? potRaise(ctx, between(0.8, 1.0)) : CALL; // Check-Raise / Value-Raise, sonst Falle
   if (eq1 > 0.74 && ctx.canRaise && mix(0.25 * m.agg)) return potRaise(ctx, between(0.6, 0.8));
   if (draw && ctx.canRaise && heads && mix(0.2 * m.agg * m.bluff * Math.min(1.5, foldy))) return potRaise(ctx, 0.75); // Semi-Bluff-Raise
-  const implied = (ctx.street <= 2 ? 0.06 : 0.02) + pos * 0.02;
+  const implied = (ctx.street <= 2 ? 0.04 : 0) + pos * 0.02;
   if (eq + implied > odds + (heads ? 0.01 : 0.02)) return CALL;
   // Float: schwache Hand in Position gegen kleinen Einsatz mitgehen, um später zu bluffen.
   if (heads && cat === 0 && pos > 0.6 && ctx.street <= 2 && ctx.toCall <= 0.4 * ctx.pot && mix(0.15 * m.bluff)) return CALL;

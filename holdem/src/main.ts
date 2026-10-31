@@ -1,7 +1,20 @@
 // Oberfläche: rendert den Spielzustand ins DOM und gibt dem Menschen die Buttons.
-import { Game, Player, START_STACK } from './game';
+import { BUY_IN, Game, Player, START_STACK } from './game';
 import { Action, ActCtx, MODELS, getModel, pickReplacement, pickStyles, setModel } from './bots';
-import { AGGR_GRADES, HandRec, VPIP_GRADES, addHand, clearStats, loadLog, loadStats, saveLog, summarize } from './stats';
+import {
+  AGGR_GRADES,
+  HandRec,
+  VPIP_GRADES,
+  addHand,
+  addTournament,
+  clearStats,
+  loadLog,
+  loadStats,
+  loadTournaments,
+  saveLog,
+  summarize,
+  summarizeTournaments,
+} from './stats';
 import { RANKS, SUITS, SUIT_NAMES, bestHand, equity, handName, isRed, rankOf, suitOf } from './poker';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -295,9 +308,11 @@ function render(): void {
       $('overTitle').textContent = `Bilanz ${balance > 0 ? '+' : ''}${fmt(balance)} Chips`;
       $('overSub').textContent = `Tisch verlassen nach ${g.handNo} Händen${extra}.`;
     } else {
-      $('overTitle').textContent = g.over === 'win' ? 'Du hast alle Chips.' : 'Deine Chips sind weg.';
+      const pool = g.players.length * BUY_IN;
+      $('overTitle').textContent = g.over === 'win' ? `Du gewinnst den Pot: +${fmt(pool - BUY_IN)}` : `Ausgeschieden: −${fmt(BUY_IN)}`;
       $('overSub').textContent =
-        g.over === 'win' ? `Alle ${g.players.length - 1} Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`;
+        (g.over === 'win' ? `Alle ${g.players.length - 1} Bots sind raus, nach ${g.handNo} Händen.` : `Ausgeschieden nach ${g.handNo} Händen.`) +
+        ` Preispool ${fmt(pool)} (${g.players.length} × ${fmt(BUY_IN)}), der Sieger bekommt alles.`;
     }
   }
   maybeEquity();
@@ -338,6 +353,7 @@ async function run(): Promise<void> {
   await new Promise((r) => setTimeout(r, 500));
   while (!g.over && id === runId) {
     rec = newRec();
+    rec.mode = g.mode;
     const before = g.players[0].stack;
     const buyinsBefore = g.players[0].buyins;
     await g.playHand();
@@ -349,6 +365,11 @@ async function run(): Promise<void> {
     rec.sd = g.showdownDone && !me.folded ? 1 : 0;
     addHand(rec);
     saveLog(g.history);
+    if (g.over === 'win' || g.over === 'lose') {
+      // Winner takes all: der Sieger bekommt den ganzen Preispool, alle anderen verlieren ihren Buy-in.
+      const pool = g.players.length * BUY_IN;
+      addTournament({ won: g.over === 'win' ? 1 : 0, players: g.players.length, net: g.over === 'win' ? pool - BUY_IN : -BUY_IN, hands: g.handNo });
+    }
     render();
     if (g.over) break;
     await waitNext();
@@ -423,7 +444,7 @@ function showStats(): void {
 <dt>Fold gegen Einsatz</dt><dd>${pct(s.foldTo)}</dd>
 <dt>Showdown</dt><dd>${pct(s.showdown)}</dd>
 <dt>Hände gewonnen</dt><dd>${pct(s.winRate)}</dd>
-<dt>Bilanz</dt><dd class="${s.chips >= 0 ? 'plus' : 'minus'}">${signed(s.chips)} Chips</dd>
+<dt>Cash-Bilanz</dt><dd class="${s.chips >= 0 ? 'plus' : 'minus'}">${signed(s.chips)} Chips</dd>
 <dt>Hände im Plus / Minus</dt><dd>${s.won} / ${s.lost}</dd>
 <dt>Größter Gewinn / Verlust</dt><dd>${signed(s.best)} / ${signed(s.worst)}</dd>
 <dt>Ø pro Hand</dt><dd>${s.bbPerHand >= 0 ? '+' : ''}${s.bbPerHand.toFixed(2)} BB</dd>
@@ -431,7 +452,21 @@ function showStats(): void {
 <p class="hint">BB = Big Blind, der größere Pflichteinsatz. „Ø pro Hand“ ist dein durchschnittlicher Gewinn (+) oder Verlust (−) pro Hand, gemessen in Big Blinds. So bleibt der Wert vergleichbar, auch wenn die Blinds steigen.</p>
 <ul>${s.tips.map((t) => `<li>${t}</li>`).join('')}</ul>`
     : '<p>Noch keine Daten. Spiel ein paar Hände.</p>';
-  $<HTMLButtonElement>('bClear').disabled = !s;
+  const t = summarizeTournaments(loadTournaments());
+  if (t) {
+    const total = t.net + (s?.chips ?? 0);
+    $('statsBody').insertAdjacentHTML(
+      'beforeend',
+      `<h3>Turniere (Buy-in ${fmt(BUY_IN)}, Winner takes all)</h3>
+<dl>
+<dt>Gespielt / Siege</dt><dd>${t.played} / ${t.wins} (${Math.round((t.wins / t.played) * 100)} %)</dd>
+<dt>Turnier-Bilanz</dt><dd class="${t.net >= 0 ? 'plus' : 'minus'}">${signed(t.net)}</dd>
+<dt>Bester Turniergewinn</dt><dd>${signed(t.best)}</dd>
+<dt>Gesamt (Turniere + Cash)</dt><dd class="${total >= 0 ? 'plus' : 'minus'}">${signed(total)}</dd>
+</dl>`,
+    );
+  }
+  $<HTMLButtonElement>('bClear').disabled = !s && !t;
   $('stats').hidden = false;
 }
 const MODEL_KEY = 'holdem.model.v1';
