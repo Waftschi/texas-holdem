@@ -77,6 +77,98 @@ Beispiel: `npm run bench -- cash 400 100 pro improved`. Modelle sind `pro`, `imp
 
 Messungen (Cash, 400 Sessions, 100 Simulationen): Pro gegen Verbessert +22 ± 9 BB/100 heads-up und +7 ± 9 zu viert, Verbessert gegen Klassisch +42 ± 7, Pro gegen Klassisch +54 ± 8. Das ist Bot gegen Bot, nicht gegen einen Menschen.
 
+## Architektur
+
+Die Spiel-Engine (`holdem/src/game.ts`) kennt keine Oberfläche. Die Bots entscheiden über austauschbare Strategien.
+
+| Muster | Wo | Zweck |
+|---|---|---|
+| **Strategy** (GoF) | `Model` und `models/` in `bots.ts`, `Style.brain` | Austauschbare Entscheidungslogik der Bots, wählbar zur Laufzeit |
+| **Registry** (Lookup per Id) | `MODELS`, `setModel(id)` in `bots.ts` | Modelle unter einem Namen finden (Menü, Speicherung, Benchmark) |
+| **Dependency Injection** / Ports and Adapters | `Hooks` in `game.ts` | Die Engine bekommt Oberfläche, Wartezeit und Eingaben von außen |
+| **Repository** | `stats.ts` | Kapselt `localStorage` für Statistik, Verlauf und Turniere |
+| **Parameter Object** | `ActCtx`, `Style` in `botkit.ts` | Bündelt alles, was ein Bot vor seiner Entscheidung sieht |
+| **Template Method** (ohne Vererbung) | `playHand()` in `game.ts` | Fester Ablauf pro Hand, austauschbar sind nur die Entscheidungen |
+
+Dependency Injection ist kein GoF-Muster, sondern eine Technik, die das Dependency-Inversion-Prinzip umsetzt. Die Auszüge unten sind gekürzt.
+
+**Strategy und Registry** (`holdem/src/bots.ts`, `game.ts`):
+
+```ts
+export interface Model {
+  id: string;
+  name: string;
+  decide: (ctx: ActCtx, st: Style) => Action;
+}
+
+export const MODELS: Model[] = [
+  { id: 'pro', name: 'Pro Spieler', decide: decidePro },
+  { id: 'improved', name: 'Verbessert', decide: decideImproved },
+  { id: 'classic', name: 'Klassisch', decide: decideClassic },
+];
+
+export function setModel(id: string): boolean {
+  const m = MODELS.find((x) => x.id === id);
+  if (!m) return false;
+  active = m;
+  return true;
+}
+
+export function decide(ctx: ActCtx, st: Style): Action {
+  return active.decide(ctx, st); // leitet an das gewählte Modell weiter
+}
+
+// game.ts: ein Charakter kann eine eigene Strategie mitbringen
+a = (p.style!.brain ?? decide)(ctx, p.style!);
+```
+
+**Dependency Injection** (`Hooks` in `game.ts`, Adapter in `main.ts` und `test/bench.ts`):
+
+```ts
+export interface Hooks {
+  update(): void;
+  sleep(ms: number): Promise<void>;
+  askHuman(ctx: ActCtx): Promise<Action>;
+  newPlayer?(seated: Style[]): Style | null;
+}
+
+// Oberfläche
+new Game({ update: () => render(), sleep, askHuman }, pickStyles(4), mode);
+// Benchmark: ohne Oberfläche und ohne Wartezeit
+new Game({ update() {}, sleep: () => Promise.resolve(), askHuman: (c) => Promise.resolve(brain(c, style)) }, bots, 'cash');
+```
+
+**Repository** (`stats.ts`):
+
+```ts
+export function loadStats(): HandRec[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(KEY) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
+export function addHand(rec: HandRec): void { /* laden, anhängen, auf 2000 kürzen, speichern */ }
+export function clearStats(): boolean { /* Schlüssel entfernen */ }
+```
+
+**Template Method** (`playHand()` in `game.ts`, stark gekürzt):
+
+```ts
+async playHand() {
+  /* Blinds setzen, Karten geben */
+  for (const street of streets) {
+    /* Board aufdecken */
+    await this.betRound(first); // fragt den Menschen (askHuman) oder den Bot (decide)
+  }
+  await this.showdown();
+  this.finish();
+}
+```
+
+Nicht als Muster gebaut: Die Spielphasen sind ein einfaches Enum und kein State-Pattern, und der Spielmodus (Turnier oder Cash) wird mit `if (mode === …)` unterschieden und nicht als Strategy.
+
 ## Entwicklung
 
 ```sh
