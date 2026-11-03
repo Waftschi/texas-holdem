@@ -22,6 +22,11 @@ const HANDS = 300;
 type Brain = (c: any, s: any) => any;
 // Modell-id oder Name eines Charakters mit eigener Strategie (bruno, luna, ines).
 const byId = (x: string) => {
+  // „pro-nomem“: Pro ohne das Gedächtnis dieses Spiels (zum Messen, was es bringt).
+  if (x === 'pro-nomem') {
+    const pro = A.MODELS.find((y) => y.id === 'pro')!;
+    return { id: x, decide: (c: any, s: any) => pro.decide({ ...c, read: undefined }, s) };
+  }
   const m = A.MODELS.find((y) => y.id === x);
   if (m) return m;
   const c = A.EXTRA_STYLES.find((y) => y.name.toLowerCase() === x);

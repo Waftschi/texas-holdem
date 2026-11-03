@@ -29,6 +29,17 @@ Die Bilanz im Cash Game ist dein Stack minus alle Buy-ins; ein Rebuy zählt in d
 
 In der Statistik stehen beide getrennt: die **Cash-Bilanz** (Chips aus Cash-Händen) und die **Turnier-Bilanz** (Geld aus beendeten Turnieren, mit Siegen und bestem Gewinn), dazu eine Gesamtbilanz. Ein Turnier, das du vor dem Ende abbrichst (neues Spiel, Moduswechsel, Seite neu laden), zählt nicht. Die Turnier-Bilanz wird unter `holdem.tournaments.v1` gespeichert und mit **Daten löschen** zurückgesetzt.
 
+## Einstellungen
+
+Unten in der **Statistik** stehen die Einstellungen. Sie werden im Browser gespeichert.
+
+| Einstellung | Werte | Wirkung |
+|---|---|---|
+| **Tempo** | Langsam, Normal, Schnell | Faktor 1,5, 1 und 0,5 auf alle Wartezeiten (Denkpausen der Bots, Austeilen, Showdown). Gilt sofort, auch mitten im Spiel. |
+| **Tischgröße** | 5 Spieler (du + 4 Bots), 4 Spieler | Ein Wechsel startet ein neues Spiel. |
+| **Spielmodus** | Turnier, Cash Game | Ein Wechsel startet ein neues Spiel. |
+| **Bot-Modell** | Pro Spieler, Verbessert, Klassisch | Gilt ab der nächsten Entscheidung. |
+
 ## Bot-Modelle
 
 Die Entscheidungslogik von Marta, Rico und Otto ist als Modell austauschbar. Unter **Statistik → Bot-Modell** wählst du, welches Modell sie nutzen. Die Wahl wird im Browser gespeichert und gilt ab der nächsten Entscheidung.
@@ -40,6 +51,8 @@ Die Entscheidungslogik von Marta, Rico und Otto ist als Modell austauschbar. Unt
 | **Klassisch** | Die ursprüngliche Logik: feste Starthand-Schwellen, unabhängig von der Spielerzahl. |
 
 Bruno, Luna, Kalle und Ines haben je eine eigene Strategie und bleiben vom Modell unberührt. Ein neues Modell besteht aus einer Datei in `holdem/src/models/` mit einer Funktion `(ctx, style) => Action` und einem Eintrag in `MODELS` (`holdem/src/bots.ts`). Gemeinsame Typen und Hilfsfunktionen stehen in `holdem/src/botkit.ts`.
+
+**Gedächtnis pro Spiel:** Die Engine zählt für jeden Spieler mit, wie er in diesem Spiel spielt: freiwillig gespielte Hände (VPIP), Preflop-Raises, Bets und Calls und wie oft er nach dem Flop auf einen Einsatz foldet. Daraus entsteht für die Bots eine „Lesung“ der Gegner (`ctx.read`), die bei Normalwerten startet und nach 8 Händen gilt. „Pro Spieler“ passt sich daran an: Gegen Gegner, die fast alles callen, setzt er dünner für Value und blufft weniger. Gegen sehr aggressive geht er mit schwächeren Händen mit, gegen sehr passive nimmt er deren Einsätze ernster, und gegen Spieler, die oft folden, blufft er öfter. Das Gedächtnis beginnt bei jedem neuen Spiel leer und wird nicht gespeichert. Gemessen gewinnt Pro mit Gedächtnis gegen „Verbessert“ etwa 14 BB/100 mehr als ohne (+45 ± 8 gegen +30 ± 7). Dieser Vorteil ist nicht riesig; eine Wiederholung der Messung lohnt sich. Mit `pro-nomem` im Benchmark spielt Pro ohne Gedächtnis.
 
 ## Statistik
 

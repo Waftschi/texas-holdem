@@ -4,7 +4,15 @@ import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync(process.argv[2], 'utf8');
-const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true });
+const dom = new JSDOM(html, {
+  runScripts: 'dangerously',
+  pretendToBeVisual: true,
+  beforeParse(w) {
+    // Die Bots denken im Test 10-mal schneller; der Doppel-Tap-Schutz misst echte Zeit und bleibt unberührt.
+    const st = w.setTimeout.bind(w);
+    w.setTimeout = (fn, ms, ...a) => st(fn, (ms ?? 0) / 10, ...a);
+  },
+});
 const w = dom.window;
 const d = w.document;
 const errors = [];

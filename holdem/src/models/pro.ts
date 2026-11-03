@@ -42,7 +42,7 @@ function preflop(ctx: ActCtx, st: Style): Action {
     if (ctx.canRaise) {
       if (edge >= 2.1 && r < 0.85) return edge >= 2.6 && cost > 0.15 ? { type: 'raise', to: ctx.maxTo } : raise(between(2.7, 3.4));
       // Bluff-Reraise mit Blocker (Ass) in Position gegen Spieler, die viel folden.
-      if (hasAce && pos > 0.5 && r < 0.09 * m.bluff * clamp(ctx.foldRate / 0.35, 0.5, 2)) return raise(between(2.7, 3.4));
+      if (hasAce && pos > 0.5 && r < 0.09 * m.bluff * clamp((ctx.read && ctx.read.hands >= 8 ? ctx.read.foldPost : ctx.foldRate) / 0.35, 0.5, 2)) return raise(between(2.7, 3.4));
     }
     return eq + 0.05 + pos * 0.03 > odds ? call : fold;
   }
@@ -72,7 +72,12 @@ function postflop(ctx: ActCtx, st: Style): Action {
   const strongMade = cat >= 2 || topPair;
   // Draw: schwache fertige Hand, aber nennenswerte Gewinnchance durch kommende Karten.
   const draw = !strongMade && ctx.street < 3 && eq1 >= 0.3;
-  const foldy = clamp(ctx.foldRate / 0.35, 0.4, 2); // > 1: Gegner folden viel
+  // Gedächtnis dieses Spiels: erst nach einigen Händen ernst nehmen, vorher gelten die Normalwerte.
+  const rd = ctx.read && ctx.read.hands >= 8 ? ctx.read : undefined;
+  const foldy = clamp((rd ? rd.foldPost : ctx.foldRate) / 0.35, 0.4, 2); // > 1: Gegner folden viel
+  const station = !!rd && rd.vpip > 0.55 && rd.foldPost < 0.28; // ruft fast alles: dünn für Value setzen, kaum bluffen
+  const lag = !!rd && rd.aggr > 1.6; // setzt und erhöht viel: Einsätze weiter callen
+  const nit = !!rd && rd.aggr < 0.7; // setzt selten: seine Einsätze ernst nehmen
   const odds = ctx.toCall / (ctx.pot + ctx.toCall);
 
   if (ctx.toCall === 0) {
@@ -82,11 +87,11 @@ function postflop(ctx: ActCtx, st: Style): Action {
       if (ctx.street < 3 && ctx.nOpp <= 2 && mix(0.3)) return CHECK;
       return potRaise(ctx, between(0.65, 1.0));
     }
-    if (eq1 > 0.72) return mix(0.88) ? potRaise(ctx, between(0.45, 0.75)) : CHECK;
-    if (eq1 > 0.58) return mix((pos > 0.5 ? 0.6 : 0.4) * m.agg) ? potRaise(ctx, between(0.3, 0.5)) : CHECK;
+    if (eq1 > (station ? 0.66 : 0.72)) return mix(0.88) ? potRaise(ctx, between(0.45, 0.75)) : CHECK;
+    if (eq1 > (station ? 0.52 : 0.58)) return mix((pos > 0.5 ? 0.6 : 0.4) * m.agg) ? potRaise(ctx, between(0.3, 0.5)) : CHECK;
     if (draw && mix(0.5 * m.agg * (0.6 + 0.4 * m.bluff))) return potRaise(ctx, between(0.5, 0.75)); // Semi-Bluff
     if (ctx.street === 1 && ctx.wasAggressor && ctx.nOpp <= 2 && mix(0.6 * m.agg * Math.min(1.2, foldy))) return potRaise(ctx, between(0.33, 0.55)); // C-Bet
-    const bluff = 0.14 * m.bluff * (0.6 + pos) * foldy * (heads ? 1 : 0.3) * (ctx.street === 3 ? 0.6 : 1);
+    const bluff = 0.14 * m.bluff * (0.6 + pos) * foldy * (station ? 0.4 : 1) * (heads ? 1 : 0.3) * (ctx.street === 3 ? 0.6 : 1);
     return mix(bluff) ? potRaise(ctx, between(0.5, 0.75)) : CHECK;
   }
 
@@ -95,7 +100,7 @@ function postflop(ctx: ActCtx, st: Style): Action {
   if (eq1 > 0.74 && ctx.canRaise && mix(0.25 * m.agg)) return potRaise(ctx, between(0.6, 0.8));
   if (draw && ctx.canRaise && heads && mix(0.2 * m.agg * m.bluff * Math.min(1.5, foldy))) return potRaise(ctx, 0.75); // Semi-Bluff-Raise
   const implied = (ctx.street <= 2 ? 0.04 : 0) + pos * 0.02;
-  if (eq + implied > odds + (heads ? 0.01 : 0.02)) return CALL;
+  if (eq + implied > odds + (heads ? 0.01 : 0.02) + (lag ? -0.03 : nit ? 0.03 : 0)) return CALL;
   // Float: schwache Hand in Position gegen kleinen Einsatz mitgehen, um später zu bluffen.
   if (heads && cat === 0 && pos > 0.6 && ctx.street <= 2 && ctx.toCall <= 0.4 * ctx.pot && mix(0.15 * m.bluff)) return CALL;
   return { type: 'fold' };

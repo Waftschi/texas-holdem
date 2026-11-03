@@ -321,9 +321,15 @@ function render(): void {
 
 // ---------- Ablauf ----------
 
+// Tempo: Faktor für alle Wartezeiten im Spiel (Denkpausen der Bots, Austeilen, Showdown).
+const TEMPO_KEY = 'holdem.tempo.v1';
+const TEMPOS: Record<string, number> = { slow: 1.5, normal: 1, fast: 0.5 };
+let tempo = 'normal';
+
 function speed(): number {
   const me = game.players[0];
-  return (me.folded || me.out) && !game.handOver ? 0.25 : 1;
+  const base = (me.folded || me.out) && !game.handOver ? 0.25 : 1;
+  return base * TEMPOS[tempo];
 }
 
 function waitNext(): Promise<void> {
@@ -508,6 +514,26 @@ function initMode(): void {
   });
 }
 initMode();
+
+function initTempo(): void {
+  try {
+    const saved = localStorage.getItem(TEMPO_KEY) || '';
+    if (saved in TEMPOS) tempo = saved;
+  } catch {
+    /* Speicher gesperrt: normales Tempo */
+  }
+  const sel = $<HTMLSelectElement>('tempoSel');
+  sel.value = tempo;
+  sel.addEventListener('change', () => {
+    tempo = sel.value in TEMPOS ? sel.value : 'normal';
+    try {
+      localStorage.setItem(TEMPO_KEY, tempo);
+    } catch {
+      /* ignorieren */
+    }
+  });
+}
+initTempo();
 
 function initSeats(): void {
   try {

@@ -24,6 +24,8 @@ export interface ActCtx {
   behind: number; // Spieler, die nach mir noch handeln müssen (0 = ich bin zuletzt dran)
   foeLevels: number[]; // je Gegner: 0 unbekannt, 1 hat gesetzt, 2 hat groß gesetzt
   foldRate: number; // wie oft die Gegner im Schnitt gegen Einsätze folden (0..1)
+  /** Gedächtnis dieses Spiels über die Gegner in der Hand (Durchschnitt): freiwilliges Spielen, Preflop-Raise, Aggression, Fold nach dem Flop. */
+  read?: { vpip: number; pfr: number; aggr: number; foldPost: number; hands: number };
   wasAggressor: boolean; // ich habe preflop erhöht
 }
 

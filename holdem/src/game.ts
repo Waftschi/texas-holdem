@@ -9,6 +9,21 @@ export const HANDS_PER_LEVEL = 10;
 export type Street = 'idle' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown';
 const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river'];
 
+/** Was die anderen Spieler im aktuellen Spiel von einem Spieler beobachtet haben. */
+export interface Stat {
+  faced: number; // Einsätze, vor denen er stand
+  folded: number; // davon gefoldet
+  bets: number; // Bets und Raises
+  acts: number; // Aktionen insgesamt
+  hands: number; // gespielte Hände
+  vpip: number; // Hände mit freiwilligem Einsatz preflop
+  pfr: number; // Hände mit Preflop-Raise
+  calls: number;
+  postFaced: number; // Einsätze nach dem Flop, vor denen er stand
+  postFolded: number; // davon gefoldet
+}
+const newStat = (): Stat => ({ faced: 0, folded: 0, bets: 0, acts: 0, hands: 0, vpip: 0, pfr: 0, calls: 0, postFaced: 0, postFolded: 0 });
+
 export interface Player {
   id: number;
   name: string;
@@ -29,8 +44,9 @@ export interface Player {
   won: number;
   lvl: number; // wie stark der Spieler in dieser Runde gesetzt hat (0 nichts, 1 gesetzt, 2 groß)
   preRaiser: boolean; // hat preflop erhöht
+  vpipDone: boolean; // in dieser Hand schon als VPIP gezählt
   buyins: number; // Anzahl Buy-ins (Cash Game: nach jedem Pleitegehen +1)
-  stat: { faced: number; folded: number; bets: number; acts: number }; // Verhalten über das ganze Spiel
+  stat: Stat; // Gedächtnis: Verhalten über das ganze Spiel (beginnt bei jedem neuen Spiel leer)
 }
 
 export interface Hooks {
@@ -65,8 +81,9 @@ function mk(id: number, name: string, human: boolean, style?: Style): Player {
     won: 0,
     lvl: 0,
     preRaiser: false,
+    vpipDone: false,
     buyins: 1,
-    stat: { faced: 0, folded: 0, bets: 0, acts: 0 },
+    stat: newStat(),
   };
 }
 
@@ -150,6 +167,15 @@ export class Game {
     // Wer oft setzt, hat im Schnitt schwächere Hände: seine Range wird um eine Stufe weiter gefasst.
     const levels = others.map((q) => (q.lvl > 0 && q.stat.acts >= 8 && q.stat.bets / q.stat.acts > 0.4 ? q.lvl - 1 : q.lvl));
     const foldRate = others.reduce((s, q) => s + (q.stat.folded + 2) / (q.stat.faced + 5), 0) / Math.max(1, others.length);
+    // Lesung der Gegner, die noch in der Hand sind: Werte starten bei einem Normalwert und werden mit jeder Hand genauer.
+    const avg = (f: (q: Player) => number): number => others.reduce((s, q) => s + f(q), 0) / Math.max(1, others.length);
+    const read = {
+      vpip: avg((q) => (q.stat.vpip + 0.4 * 8) / (q.stat.hands + 8)),
+      pfr: avg((q) => (q.stat.pfr + 0.15 * 8) / (q.stat.hands + 8)),
+      aggr: avg((q) => (q.stat.bets + 5) / (q.stat.calls + 5)),
+      foldPost: avg((q) => (q.stat.postFolded + 0.35 * 5) / (q.stat.postFaced + 5)),
+      hands: avg((q) => q.stat.hands),
+    };
     return {
       hole: p.hole,
       board: this.board,
@@ -168,6 +194,7 @@ export class Game {
       behind: others.filter((q) => !q.allIn && !q.acted).length,
       foeLevels: levels,
       foldRate,
+      read,
       wasAggressor: p.preRaiser,
     };
   }
@@ -190,6 +217,16 @@ export class Game {
     if (c.toCall > 0) {
       p.stat.faced++;
       if (a.type === 'fold') p.stat.folded++;
+      if (this.street !== 'preflop') {
+        p.stat.postFaced++;
+        if (a.type === 'fold') p.stat.postFolded++;
+      }
+    }
+    if (a.type === 'call') p.stat.calls++;
+    // Freiwillig Geld in den Pot (VPIP): Call mit offenem Einsatz oder Raise, einmal pro Hand.
+    if (this.street === 'preflop' && !p.vpipDone && (a.type === 'raise' || (a.type === 'call' && c.toCall > 0))) {
+      p.vpipDone = true;
+      p.stat.vpip++;
     }
     if (a.type === 'fold') {
       p.folded = true;
@@ -211,6 +248,7 @@ export class Game {
       for (const q of this.players) if (q !== p) q.acted = false;
       p.stat.bets++;
       if (this.street === 'preflop') {
+        if (!p.preRaiser) p.stat.pfr++;
         p.preRaiser = true;
         p.lvl = before > this.bb ? 2 : 1;
       } else {
@@ -278,7 +316,7 @@ export class Game {
         p.name = next.name;
         p.style = next;
         p.buyins = 1;
-        p.stat = { faced: 0, folded: 0, bets: 0, acts: 0 };
+        p.stat = newStat();
       } else {
         p.buyins++;
         rebuyers.push(p);
@@ -305,6 +343,8 @@ export class Game {
       p.won = 0;
       p.lvl = 0;
       p.preRaiser = false;
+      p.vpipDone = false;
+      if (!p.out) p.stat.hands++;
     }
     this.board = [];
     this.deck = newDeck();
