@@ -20,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      TZ: Europe/Berlin # das Build-Datum in der Version zeigt deutsche Zeit
+      TZ: Europe/Berlin # das Datum in der Version zeigt das deutsche Datum
     steps:
       - uses: actions/checkout@v4
         with:

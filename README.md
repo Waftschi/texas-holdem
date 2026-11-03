@@ -173,7 +173,7 @@ Nicht als Muster gebaut: Die Spielphasen sind ein einfaches Enum und kein State-
 
 ## Version
 
-Unten in der Statistik steht die Version des Builds, z. B. `v1.18+ · 03.11.2026 12:12`: Hauptversion (die erste Zahl von `version` in `package.json`, für ein neues Hauptrelease z. B. auf `2.0.0` setzen), Anzahl der Commits und Build-Zeit. Die Commit-Anzahl zählt bei einem neuen Hauptrelease weiter und beginnt nicht bei null. Ein `+` hinter der Nummer heißt, dass beim Bauen noch nicht committete Änderungen vorlagen (gebaute Dateien wie `index.html` zählen nicht mit). Die Nummer zeigt den letzten Commit zur Zeit des Builds. Ein committeter Build, der vor dem Commit entstand, trägt also die Nummer davor.
+Unten in der Statistik steht die Version des Builds, z. B. `v1.18+ · 03.11.2026`: Hauptversion (die erste Zahl von `version` in `package.json`, für ein neues Hauptrelease z. B. auf `2.0.0` setzen), Anzahl der Commits und Build-Datum (ohne Uhrzeit). Die Commit-Anzahl zählt bei einem neuen Hauptrelease weiter und beginnt nicht bei null. Ein `+` hinter der Nummer heißt, dass beim Bauen noch nicht committete Änderungen vorlagen (gebaute Dateien wie `index.html` zählen nicht mit). Die Nummer zeigt den letzten Commit zur Zeit des Builds. Ein committeter Build, der vor dem Commit entstand, trägt also die Nummer davor.
 
 Der Name des Service-Worker-Caches (`holdem-<Version>-<Hash>`) enthält dieselbe Version und den kurzen Commit-Hash (er wird nicht angezeigt). Jede neue Fassung ersetzt so den alten Cache. Die Statistik liegt im `localStorage` und ist davon nicht betroffen.
 
