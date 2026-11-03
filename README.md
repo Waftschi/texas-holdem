@@ -45,6 +45,8 @@ Bruno, Luna, Kalle und Ines haben je eine eigene Strategie und bleiben vom Model
 
 Der Button **Statistik** in der Kopfzeile zeigt eine Auswertung des eigenen Spiels. Pro beendeter Hand wird ein kleiner Datensatz im `localStorage` des Browsers gespeichert (Schlüssel `holdem.stats.v1`, die letzten 2000 Hände). Die Daten bleiben auf diesem Gerät. **Daten löschen** in der Statistik entfernt sie wieder.
 
+**Filter:** Oben in der Statistik wählst du den **Modus** (Alle / Cash / Turnier) und den **Zeitraum** (alle Hände / letzte 200 / letzte 100). Name, Grade, Kennzahlen und Tipps werden dann nur aus diesen Händen berechnet, und eine Zeile zeigt den Vergleich mit allen Händen (z. B. „VPIP 38 % / 44 %“). Hinter dem VPIP steht die Schwankung durch Zufall (z. B. ±9). Die Auswahl wird gemerkt. Die gespeicherten Hände ändern sich dadurch nicht. Ältere Hände ohne Modus erscheinen nur unter „Alle“. Turnier-Bilanz und Gesamtbilanz hängen nicht vom Filter ab.
+
 | Kennzahl | Bedeutung |
 |---|---|
 | **VPIP** (Voluntarily Put money In Pot) | Anteil der Hände, in denen du preflop freiwillig Chips setzt (Call oder Raise). Blinds und Check im Big Blind zählen nicht. Hoch heißt: du spielst viele Hände (typisch 20–40 %). |
@@ -168,6 +170,12 @@ async playHand() {
 ```
 
 Nicht als Muster gebaut: Die Spielphasen sind ein einfaches Enum und kein State-Pattern, und der Spielmodus (Turnier oder Cash) wird mit `if (mode === …)` unterschieden und nicht als Strategy.
+
+## Version
+
+Unten in der Statistik steht die Version des Builds, z. B. `v1.18+ · 03.11.2026 12:12`: Hauptversion (die erste Zahl von `version` in `package.json`, für ein neues Hauptrelease z. B. auf `2.0.0` setzen), Anzahl der Commits und Build-Zeit. Die Commit-Anzahl zählt bei einem neuen Hauptrelease weiter und beginnt nicht bei null. Ein `+` hinter der Nummer heißt, dass beim Bauen noch nicht committete Änderungen vorlagen (gebaute Dateien wie `index.html` zählen nicht mit). Die Nummer zeigt den letzten Commit zur Zeit des Builds. Ein committeter Build, der vor dem Commit entstand, trägt also die Nummer davor.
+
+Der Name des Service-Worker-Caches (`holdem-<Version>-<Hash>`) enthält dieselbe Version und den kurzen Commit-Hash (er wird nicht angezeigt). Jede neue Fassung ersetzt so den alten Cache. Die Statistik liegt im `localStorage` und ist davon nicht betroffen.
 
 ## Entwicklung
 

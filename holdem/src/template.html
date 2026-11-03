@@ -220,6 +220,11 @@
   .stats dd.plus { color: var(--good); }
   .stats dd.minus { color: var(--bad); }
   .stats .hint { margin: 0; font-size: 12px; color: var(--muted); }
+  .stats .version { margin: 0; text-align: center; font: 11px var(--font-mono); color: var(--muted); }
+  .stats dd small { color: var(--muted); font: 11px var(--font-body); }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--muted); font-size: 12px; }
+  .filters label { display: grid; gap: 4px; }
+  .filters select { height: 40px; border-radius: 10px; border: 1px solid var(--line); background: #1a2821; color: var(--text); font: inherit; font-size: 14px; padding: 0 10px; }
   .model { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
   .model label { color: var(--muted); }
   .model select { height: 44px; border-radius: 12px; border: 1px solid var(--line); background: #1a2821; color: var(--text); font: inherit; padding: 0 12px; }
@@ -279,6 +284,22 @@
   <div class="stats" id="stats" hidden role="dialog" aria-label="Statistik">
     <div class="stats-box">
       <h2>Dein Spiel</h2>
+      <div class="filters">
+        <label>Modus
+          <select id="fMode">
+            <option value="all">Alle</option>
+            <option value="cash">Cash</option>
+            <option value="tournament">Turnier</option>
+          </select>
+        </label>
+        <label>Zeitraum
+          <select id="fLast">
+            <option value="0">Alle Hände</option>
+            <option value="200">Letzte 200</option>
+            <option value="100">Letzte 100</option>
+          </select>
+        </label>
+      </div>
       <div id="statsBody"></div>
       <div class="model">
         <label for="seatSel">Tischgröße</label>
@@ -301,6 +322,7 @@
         <select id="modelSel"></select>
         <p class="hint" id="modelDesc"></p>
       </div>
+      <p class="version" id="version">Version __VERSION__</p>
       <div class="stats-btns">
         <button class="btn" id="bLog" type="button">Handverlauf</button>
         <button class="btn" id="bClear" type="button">Daten löschen</button>

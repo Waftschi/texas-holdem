@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "build": "node holdem/build.mjs && node holdem/build-pwa.mjs && cp dist/pages/index.html index.html",
+    "build": "node holdem/build.mjs && node holdem/build-pwa.mjs && cp dist/pages/index.html index.html && cp dist/pages/sw.js sw.js",
     "smoke": "node holdem/build.mjs && node holdem/test/ui-smoke.mjs dist/holdem.html",
     "serve": "python3 -m http.server 8000",
     "bench": "node holdem/test/bench.mjs"

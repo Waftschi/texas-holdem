@@ -154,6 +154,15 @@ export function clearStats(): boolean {
   }
 }
 
+/**
+ * Wählt Hände für die Auswertung: nach Modus („all“ nimmt alles, auch ältere Hände ohne Modus) und optional nur die letzten `last` Hände.
+ * Die gespeicherten Daten bleiben unverändert.
+ */
+export function filterRecs(recs: HandRec[], mode: string, last: number): HandRec[] {
+  const byMode = mode === 'cash' || mode === 'tournament' ? recs.filter((r) => r.mode === mode) : recs;
+  return last > 0 ? byMode.slice(-last) : byMode;
+}
+
 export function summarize(recs: HandRec[]): Summary | null {
   const n = recs.length;
   if (n === 0) return null;

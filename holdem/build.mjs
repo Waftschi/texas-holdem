@@ -4,6 +4,7 @@ import { build } from 'esbuild';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getVersion } from './version.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = process.argv[2] || join(here, '..', 'dist/holdem.html');
@@ -18,6 +19,8 @@ const res = await build({
   write: false,
 });
 const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-const html = readFileSync(join(here, 'src/template.html'), 'utf8').replace('/*__APP_JS__*/', () => js);
+const html = readFileSync(join(here, 'src/template.html'), 'utf8')
+  .replace('__VERSION__', () => getVersion().label)
+  .replace('/*__APP_JS__*/', () => js);
 writeFileSync(out, html);
 console.log(`${out}: ${(html.length / 1024).toFixed(1)} KB`);

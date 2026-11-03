@@ -8,6 +8,7 @@ import {
   addHand,
   addTournament,
   clearStats,
+  filterRecs,
   loadLog,
   loadStats,
   loadTournaments,
@@ -429,32 +430,40 @@ $('bNext').addEventListener('click', () => {
   r?.();
 });
 function showStats(): void {
-  const s = summarize(loadStats());
+  const recs = loadStats();
+  const all = summarize(recs); // alles, unabhängig vom Filter (für Vergleich und Gesamtbilanz)
+  const fMode = $<HTMLSelectElement>('fMode').value;
+  const fLast = Number($<HTMLSelectElement>('fLast').value);
+  const s = summarize(filterRecs(recs, fMode, fLast));
+  const filtered = fMode !== 'all' || fLast > 0;
   const dots = (g: number) => '●'.repeat(g + 1) + '○'.repeat(4 - g);
   const signed = (n: number) => (n > 0 ? '+' : '') + fmt(n);
   const pct = (x: number | null) => (x === null ? '–' : `${Math.round(x * 100)} %`);
   $('statsBody').innerHTML = s
     ? `${s.name ? `<p class="name">${s.name}</p>` : ''}<p class="label">${s.label}</p>
 <div class="grades"><span>Spielweite</span><span class="dots" title="${VPIP_GRADES[s.vpipGrade]}">${dots(s.vpipGrade)}</span><span>Aggression</span><span class="dots" title="${AGGR_GRADES[s.aggrGrade]}">${dots(s.aggrGrade)}</span></div>
+${filtered && all ? `<p class="hint">Auswahl (${s.hands} Hände) gegenüber allen ${all.hands} Händen: VPIP ${pct(s.vpip)} / ${pct(all.vpip)}, PFR ${pct(s.pfr)} / ${pct(all.pfr)}, Aggression ${s.aggr === null ? '–' : s.aggr.toFixed(1)} / ${all.aggr === null ? '–' : all.aggr.toFixed(1)}.</p>` : ''}
 <dl>
 <dt>Hände</dt><dd>${s.hands}</dd>
-<dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)}</dd>
+<dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)} <small>±${Math.round(1.96 * Math.sqrt((s.vpip * (1 - s.vpip)) / s.hands) * 100)}</small></dd>
 <dt>Preflop erhöht (PFR)</dt><dd>${pct(s.pfr)}</dd>
 <dt>Aggression</dt><dd>${s.aggr === null ? '–' : s.aggr.toFixed(1)}</dd>
 <dt>Fold gegen Einsatz</dt><dd>${pct(s.foldTo)}</dd>
 <dt>Showdown</dt><dd>${pct(s.showdown)}</dd>
 <dt>Hände gewonnen</dt><dd>${pct(s.winRate)}</dd>
-<dt>Cash-Bilanz</dt><dd class="${s.chips >= 0 ? 'plus' : 'minus'}">${signed(s.chips)} Chips</dd>
+${fMode === 'tournament' ? '' : `<dt>Cash-Bilanz</dt><dd class="${s.chips >= 0 ? 'plus' : 'minus'}">${signed(s.chips)} Chips</dd>`}
 <dt>Hände im Plus / Minus</dt><dd>${s.won} / ${s.lost}</dd>
-<dt>Größter Gewinn / Verlust</dt><dd>${signed(s.best)} / ${signed(s.worst)}</dd>
+${fMode === 'tournament' ? '' : `<dt>Größter Gewinn / Verlust</dt><dd>${signed(s.best)} / ${signed(s.worst)}</dd>`}
 <dt>Ø pro Hand</dt><dd>${s.bbPerHand >= 0 ? '+' : ''}${s.bbPerHand.toFixed(2)} BB</dd>
 </dl>
 <p class="hint">BB = Big Blind, der größere Pflichteinsatz. „Ø pro Hand“ ist dein durchschnittlicher Gewinn (+) oder Verlust (−) pro Hand, gemessen in Big Blinds. So bleibt der Wert vergleichbar, auch wenn die Blinds steigen.</p>
 <ul>${s.tips.map((t) => `<li>${t}</li>`).join('')}</ul>`
-    : '<p>Noch keine Daten. Spiel ein paar Hände.</p>';
+    : all
+      ? '<p>Keine Hände für diese Auswahl. Ältere Hände ohne Modus erscheinen nur unter „Alle“.</p>'
+      : '<p>Noch keine Daten. Spiel ein paar Hände.</p>';
   const t = summarizeTournaments(loadTournaments());
   if (t) {
-    const total = t.net + (s?.chips ?? 0);
+    const total = t.net + (all?.chips ?? 0);
     $('statsBody').insertAdjacentHTML(
       'beforeend',
       `<h3>Turniere (Buy-in ${fmt(BUY_IN)}, Winner takes all)</h3>
@@ -466,7 +475,7 @@ function showStats(): void {
 </dl>`,
     );
   }
-  $<HTMLButtonElement>('bClear').disabled = !s && !t;
+  $<HTMLButtonElement>('bClear').disabled = !all && !t;
   $('stats').hidden = false;
 }
 const MODEL_KEY = 'holdem.model.v1';
@@ -561,6 +570,30 @@ function showLog(): void {
     : '<p>Noch keine Hände.</p>';
   $('log').hidden = false;
 }
+// Filter der Statistik: Auswahl wird gemerkt, die gespeicherten Hände bleiben unverändert.
+const FILTER_KEY = 'holdem.filter.v1';
+function initFilters(): void {
+  const fMode = $<HTMLSelectElement>('fMode');
+  const fLast = $<HTMLSelectElement>('fLast');
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
+    if (['all', 'cash', 'tournament'].includes(saved.mode)) fMode.value = saved.mode;
+    if (['0', '100', '200'].includes(String(saved.last))) fLast.value = String(saved.last);
+  } catch {
+    /* Speicher gesperrt oder defekt: Standardauswahl */
+  }
+  const onChange = () => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ mode: fMode.value, last: fLast.value }));
+    } catch {
+      /* ignorieren */
+    }
+    showStats();
+  };
+  fMode.addEventListener('change', onChange);
+  fLast.addEventListener('change', onChange);
+}
+initFilters();
 $('bStats').addEventListener('click', showStats);
 $('bLog').addEventListener('click', showLog);
 $('bLogClose').addEventListener('click', () => ($('log').hidden = true));

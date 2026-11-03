@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getVersion } from './version.mjs';
 
 // Quellen liegen in holdem/, Symbole und Service Worker in pwa/ im Projektordner, das Ergebnis in dist/pages im Projektordner.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -24,7 +25,10 @@ const res = await build({
 const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 
 // Die Vorlage ist ein Fragment (Titel, Stil, Markup, Skript). Hier bekommt sie ein vollständiges Dokument.
-const tpl = readFileSync(join(here, 'src/template.html'), 'utf8').replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '');
+const version = getVersion();
+const tpl = readFileSync(join(here, 'src/template.html'), 'utf8')
+  .replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '')
+  .replace('__VERSION__', () => version.label);
 const cut = tpl.indexOf('</style>') + '</style>'.length;
 const head = tpl.slice(0, cut);
 const body = tpl.slice(cut).replace('/*__APP_JS__*/', () => js);
@@ -57,4 +61,7 @@ for (const f of ['manifest.webmanifest', 'sw.js', 'icon-192.png', 'icon-512.png'
   if (!existsSync(join(root, 'pwa', f))) throw new Error(`pwa/${f} fehlt (make-icons.py ausführen?)`);
   copyFileSync(join(root, 'pwa', f), join(out, f));
 }
-console.log(`${out}/index.html: ${(html.length / 1024).toFixed(1)} KB`);
+// Der Cache des Service Workers trägt die Version im Namen, so ersetzt jede neue Fassung den alten Cache.
+const swPath = join(out, 'sw.js');
+writeFileSync(swPath, readFileSync(swPath, 'utf8').replace('__VERSION__', () => version.id));
+console.log(`${out}/index.html: ${(html.length / 1024).toFixed(1)} KB, Version ${version.label}`);
