@@ -605,7 +605,7 @@ function initFilters(): void {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
     if (['all', 'cash', 'tournament'].includes(saved.mode)) fMode.value = saved.mode;
-    if (['0', '100', '200'].includes(String(saved.last))) fLast.value = String(saved.last);
+    if (['0', '100', '200', '500', '1000'].includes(String(saved.last))) fLast.value = String(saved.last);
   } catch {
     /* Speicher gesperrt oder defekt: Standardauswahl */
   }
