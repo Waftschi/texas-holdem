@@ -372,6 +372,7 @@ async function run(): Promise<void> {
     rec.sd = g.showdownDone && !me.folded ? 1 : 0;
     addHand(rec);
     saveLog(g.history);
+    if (!$('stats').hidden) showStats(); // offene Statistik sofort aktualisieren
     if (g.over === 'win' || g.over === 'lose') {
       // Winner takes all: der Sieger bekommt den ganzen Preispool, alle anderen verlieren ihren Buy-in.
       const pool = g.players.length * BUY_IN;
@@ -448,7 +449,7 @@ function showStats(): void {
   $('statsBody').innerHTML = s
     ? `${s.name ? `<p class="name">${s.name}</p>` : ''}<p class="label">${s.label}</p>
 <div class="grades"><span>Spielweite</span><span class="dots" title="${VPIP_GRADES[s.vpipGrade]}">${dots(s.vpipGrade)}</span><span>Aggression</span><span class="dots" title="${AGGR_GRADES[s.aggrGrade]}">${dots(s.aggrGrade)}</span></div>
-${filtered && all ? `<p class="hint">Auswahl (${s.hands} Hände) gegenüber allen ${all.hands} Händen: VPIP ${pct(s.vpip)} / ${pct(all.vpip)}, PFR ${pct(s.pfr)} / ${pct(all.pfr)}, Aggression ${s.aggr === null ? '–' : s.aggr.toFixed(1)} / ${all.aggr === null ? '–' : all.aggr.toFixed(1)}.</p>` : ''}
+${filtered && all ? `<p class="hint">Auswahl (${s.hands} Hände) gegenüber allen ${all.hands} Händen: VPIP ${pct(s.vpip)} / ${pct(all.vpip)}, PFR ${pct(s.pfr)} / ${pct(all.pfr)}, Aggression ${s.aggr === null ? '–' : s.aggr.toFixed(1)} / ${all.aggr === null ? '–' : all.aggr.toFixed(1)}. Cash-Bilanz aller Hände: ${signed(all.chips)} Chips.</p>` : ''}
 <dl>
 <dt>Hände</dt><dd>${s.hands}</dd>
 <dt>Gespielt (VPIP)</dt><dd>${pct(s.vpip)} <small>±${Math.round(1.96 * Math.sqrt((s.vpip * (1 - s.vpip)) / s.hands) * 100)}</small></dd>
