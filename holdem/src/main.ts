@@ -296,7 +296,7 @@ function render(): void {
   $('pot').innerHTML = `${chipsHTML(collected)}<span class="amt">Pot ${fmt(g.pot)}</span>`;
   $('msg').textContent = g.message;
 
-  $('opps').className = g.players.length === 5 ? 'opps n4' : 'opps';
+  $('opps').className = g.players.length >= 6 ? 'opps n5' : g.players.length === 5 ? 'opps n4' : 'opps';
   $('opps').innerHTML = g.players.slice(1).map(seatHTML).join('');
   renderMe();
   renderDock();

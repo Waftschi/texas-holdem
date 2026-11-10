@@ -91,6 +91,19 @@
   .opps.n4 .nm { font-size: 13px; }
   .opps.n4 .stk { font-size: 12px; }
   .opps.n4 .ds { font-size: 9px; text-align: center; }
+  /* 6 Spieler: fünf Gegner in einer Reihe, deshalb alles kompakter */
+  .opps.n5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+  .opps.n5 .seat { padding: 5px 1px 4px; border-radius: 10px; }
+  .opps.n5 .seat .card.sm { --cw: 22px; }
+  .opps.n5 .seat .cards { min-height: 31px; gap: 1px; }
+  .opps.n5 .nm { font-size: 11px; max-width: 100%; gap: 2px; }
+  .opps.n5 .nm span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .opps.n5 .stk { font-size: 10px; }
+  .opps.n5 .ds { font-size: 8px; text-align: center; line-height: 1.1; }
+  .opps.n5 .tg { font-size: 10px; min-height: 14px; }
+  .opps.n5 .hl { font-size: 9px; min-height: 12px; line-height: 1.1; }
+  .opps.n5 .bt { font-size: 10px; gap: 2px; flex-wrap: wrap; }
+  .opps.n5 .dbtn { width: 13px; height: 13px; font-size: 8px; }
   .seat {
     min-width: 0;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
