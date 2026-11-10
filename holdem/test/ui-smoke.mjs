@@ -53,6 +53,11 @@ while (Date.now() - t0 < 90000 && (turns < 14 || hands < 2)) {
   const pick = turns % 4;
   if (pick === 1 && !$('bRaise').disabled) {
     $('bRaise').click();
+    // Kurzer Stack: Raise ist nur All-in und wird sofort ausgeführt, ohne Panel. Das ist kein Doppel-Tap-Fehler.
+    if ($('raisePanel').hidden) {
+      console.log('  Raise war nur All-in und wurde direkt ausgeführt');
+      continue;
+    }
     console.log('  Raise-Panel offen:', !$('raisePanel').hidden, '->', $('bRaise').textContent);
     $('presets').querySelector('[data-p="1"]')?.click();
     console.log('  Pot-Preset:', $('bRaise').textContent);

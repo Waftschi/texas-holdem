@@ -1,6 +1,6 @@
 # Hold'em Tisch
 
-Texas Hold'em gegen vier Bots (einstellbar auf drei), als einzelne HTML-Seite (PWA). Bei jedem neuen Spiel werden die Gegner zufällig aus sieben Charakteren gezogen. Die Tischgröße (4 oder 5 Spieler) stellst du unter **Statistik → Tischgröße** ein.
+Texas Hold'em gegen vier Bots (einstellbar auf drei), als einzelne HTML-Seite (PWA). Bei jedem neuen Spiel werden die Gegner zufällig aus zehn Charakteren gezogen. Die Tischgröße (4, 5 oder 6 Spieler) stellst du unter **Statistik → Tischgröße** ein.
 
 ## Charaktere
 
@@ -12,9 +12,12 @@ Texas Hold'em gegen vier Bots (einstellbar auf drei), als einzelne HTML-Seite (P
 | **Bruno** | greift an | Spielt viele Hände, erhöht oft, setzt Semi-Bluffs und blufft, gibt aber auf, wenn Widerstand kommt und die Gewinnchance fehlt. |
 | **Luna** | nur Premiumhände | Spielt nur starke Starthände und setzt nur für Value. Blufft nie und foldet ohne klaren Vorteil. |
 | **Ines** | legt Fallen | Spielt starke Hände passiv (Check/Call) und schlägt später zu, z. B. per Check-Raise. |
-| **Kalle** | hat einen sitzen | Der Betrunkene: schaut kaum auf seine Karten, geht fast immer mit, setzt und erhöht in wilden Größen und schiebt gelegentlich versehentlich alles rein. Im Turnier „geht er ins Bett“, wenn er pleite ist. Im Cash Game geht er ebenfalls ins Bett und ein anderer Charakter setzt sich auf seinen Platz. |
+| **Vera** | rechnet Odds | Spielt solide Starthände nach Position und entscheidet danach strikt nach Gewinnchance und Pot-Odds. |
+| **Fritz** | klaut Blinds | Erhöht aus später Position oft mit schwachen Händen und setzt, wenn alle checken. Gibt bei Widerstand ohne Chance auf. |
+| **Mia** | schiebt kurz | Mit kurzem Stack (unter 12 Big Blinds) nur Push-or-Fold, sonst straffes, ordentliches Spiel. |
+| **Hans** | ausgewogen | Spielt eine ausgewogene Mischung aus Starthänden, Erhöhungen und Bluffs nach dem gewählten Bot-Modell. |
 
-Marta, Rico und Otto nutzen dieselbe Entscheidungslogik mit unterschiedlichen Parametern (`loose`, `agg`, `bluff`). Bruno, Luna, Kalle und Ines haben jeweils eine eigene Strategie. Der Code steht in `holdem/src/bots.ts`.
+Marta, Rico, Otto und Hans nutzen dieselbe Entscheidungslogik mit unterschiedlichen Parametern (`loose`, `agg`, `bluff`). Bruno, Luna, Ines, Vera, Fritz und Mia haben jeweils eine eigene Strategie. Der Code steht in `holdem/src/bots.ts`.
 
 ## Spielmodi
 
@@ -36,7 +39,7 @@ Unten in der **Statistik** stehen die Einstellungen. Sie werden im Browser gespe
 | Einstellung | Werte | Wirkung |
 |---|---|---|
 | **Tempo** | Langsam, Normal, Schnell | Faktor 1,5, 1 und 0,5 auf alle Wartezeiten (Denkpausen der Bots, Austeilen, Showdown). Gilt sofort, auch mitten im Spiel. |
-| **Tischgröße** | 5 Spieler (du + 4 Bots), 4 Spieler | Ein Wechsel startet ein neues Spiel. |
+| **Tischgröße** | 6 Spieler (du + 5 Bots), 5 Spieler (du + 4 Bots), 4 Spieler | Ein Wechsel startet ein neues Spiel. |
 | **Spielmodus** | Turnier, Cash Game | Ein Wechsel startet ein neues Spiel. |
 | **Bot-Modell** | Pro Spieler, Verbessert, Klassisch | Gilt ab der nächsten Entscheidung. |
 
@@ -50,7 +53,7 @@ Die Entscheidungslogik von Marta, Rico und Otto ist als Modell austauschbar. Unt
 | **Verbessert** (Standard) | Spielt mit wenigen Gegnern deutlich mehr Hände und schiebt bei kurzem Stack früher All-in. |
 | **Klassisch** | Die ursprüngliche Logik: feste Starthand-Schwellen, unabhängig von der Spielerzahl. |
 
-Bruno, Luna, Kalle und Ines haben je eine eigene Strategie und bleiben vom Modell unberührt. Ein neues Modell besteht aus einer Datei in `holdem/src/models/` mit einer Funktion `(ctx, style) => Action` und einem Eintrag in `MODELS` (`holdem/src/bots.ts`). Gemeinsame Typen und Hilfsfunktionen stehen in `holdem/src/botkit.ts`.
+Bruno, Luna, Ines, Vera, Fritz und Mia haben je eine eigene Strategie und bleiben vom Modell unberührt. Ein neues Modell besteht aus einer Datei in `holdem/src/models/` mit einer Funktion `(ctx, style) => Action` und einem Eintrag in `MODELS` (`holdem/src/bots.ts`). Gemeinsame Typen und Hilfsfunktionen stehen in `holdem/src/botkit.ts`.
 
 **Gedächtnis pro Spiel:** Die Engine zählt für jeden Spieler mit, wie er in diesem Spiel spielt: freiwillig gespielte Hände (VPIP), Preflop-Raises, Bets und Calls und wie oft er nach dem Flop auf einen Einsatz foldet. Daraus entsteht für die Bots eine „Lesung“ der Gegner (`ctx.read`), die bei Normalwerten startet und nach 8 Händen gilt. „Pro Spieler“ passt sich daran an: Gegen Gegner, die fast alles callen, setzt er dünner für Value und blufft weniger. Gegen sehr aggressive geht er mit schwächeren Händen mit, gegen sehr passive nimmt er deren Einsätze ernster, und gegen Spieler, die oft folden, blufft er öfter. Das Gedächtnis beginnt bei jedem neuen Spiel leer und wird nicht gespeichert. Gemessen gewinnt Pro mit Gedächtnis gegen „Verbessert“ etwa 14 BB/100 mehr als ohne (+45 ± 8 gegen +30 ± 7). Dieser Vorteil ist nicht riesig; eine Wiederholung der Messung lohnt sich. Mit `pro-nomem` im Benchmark spielt Pro ohne Gedächtnis.
 

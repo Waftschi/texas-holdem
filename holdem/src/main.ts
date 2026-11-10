@@ -27,7 +27,7 @@ type Mode = 'tournament' | 'cash';
 const MODE_KEY = 'holdem.mode.v1';
 let mode: Mode = 'tournament';
 const SEATS_KEY = 'holdem.seats.v1';
-let seats = 5; // Spieler am Tisch inklusive dir (4 oder 5)
+let seats = 5; // Spieler am Tisch inklusive dir (4, 5 oder 6)
 let runId = 0; // erhöht sich bei jedem neuen Spiel; alte Spielschleifen hören dann auf
 let humanCtx: ActCtx | null = null;
 let humanResolve: ((a: Action) => void) | null = null;
@@ -296,7 +296,7 @@ function render(): void {
   $('pot').innerHTML = `${chipsHTML(collected)}<span class="amt">Pot ${fmt(g.pot)}</span>`;
   $('msg').textContent = g.message;
 
-  $('opps').className = g.players.length > 4 ? 'opps n4' : 'opps';
+  $('opps').className = g.players.length === 5 ? 'opps n4' : 'opps';
   $('opps').innerHTML = g.players.slice(1).map(seatHTML).join('');
   renderMe();
   renderDock();
@@ -538,7 +538,8 @@ initTempo();
 
 function initSeats(): void {
   try {
-    seats = localStorage.getItem(SEATS_KEY) === '4' ? 4 : 5;
+    const v = Number(localStorage.getItem(SEATS_KEY));
+    seats = v === 4 || v === 6 ? v : 5;
   } catch {
     /* Speicher gesperrt: 5 Spieler */
   }
@@ -550,7 +551,7 @@ function initSeats(): void {
       sel.value = String(seats);
       return;
     }
-    seats = Number(sel.value) === 4 ? 4 : 5;
+    seats = [4, 6].includes(Number(sel.value)) ? Number(sel.value) : 5;
     try {
       localStorage.setItem(SEATS_KEY, String(seats));
     } catch {

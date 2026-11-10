@@ -1,5 +1,5 @@
 // Die Bots: Spielertypen (Charaktere), Zufallsauswahl und die wählbaren Entscheidungsmodelle.
-// Marta, Rico und Otto nutzen das gewählte Modell mit eigenen Parametern; Bruno, Luna und Ines haben je eine eigene Strategie.
+// Marta, Rico, Otto und Hans nutzen das gewählte Modell mit eigenen Parametern; die übrigen Charaktere haben je eine eigene Strategie.
 import { chen, equity } from './poker';
 import { ActCtx, Action, BOT_ITERS, Style, clamp, clampRaise, position, potRaise } from './botkit';
 import { decideClassic } from './models/classic';
@@ -56,24 +56,6 @@ function lag(ctx: ActCtx, st: Style): Action {
   return { type: 'fold' };
 }
 
-/**
- * Kalle, der Betrunkene: schaut kaum auf seine Karten, geht fast immer mit, setzt und erhöht nach Laune in wilden Größen
- * und schiebt gelegentlich versehentlich alles in die Mitte. Mit kurzem Stack wird er verzweifelt und schiebt öfter.
- */
-function drunk(ctx: ActCtx, st: Style): Action {
-  const r = Math.random();
-  const desperate = ctx.stack + ctx.bet < 15 * ctx.bb;
-  const check: Action = { type: 'check' };
-  const call: Action = ctx.canCheck ? check : { type: 'call' };
-  if (ctx.canRaise && r < (desperate ? 0.1 : 0.03)) return { type: 'raise', to: ctx.maxTo }; // „Ups, alles drin“
-  if (ctx.toCall === 0) return ctx.canRaise && r < 0.35 ? potRaise(ctx, 0.3 + Math.random() * 1.7) : check;
-  // Gegen einen Einsatz: fast immer mitgehen, bei sehr großen Einsätzen gelegentlich passen.
-  const big = ctx.toCall > 0.6 * ctx.pot;
-  if (r < (big ? 0.35 : 0.12)) return { type: 'fold' };
-  if (ctx.canRaise && r > 0.82) return potRaise(ctx, 0.3 + Math.random() * 1.5);
-  return call;
-}
-
 /** Luna, der Fels: spielt nur Premiumhände, setzt nur für Value und blufft nie. */
 function rock(ctx: ActCtx, st: Style): Action {
   const r = Math.random();
@@ -119,11 +101,84 @@ function trapper(ctx: ActCtx, st: Style): Action {
   return eq + 0.02 > odds ? { type: 'call' } : { type: 'fold' };
 }
 
+/** Vera, die Rechnerin: spielt solide Starthände nach Position und entscheidet danach strikt nach Gewinnchance und Pot-Odds. */
+function calc(ctx: ActCtx, st: Style): Action {
+  const r = Math.random();
+  const call: Action = ctx.canCheck ? { type: 'check' } : { type: 'call' };
+  const fold: Action = ctx.canCheck ? { type: 'check' } : { type: 'fold' };
+  if (ctx.street === 0) {
+    const s = chen(ctx.hole) + position(ctx) * 2;
+    if (s >= 11 && ctx.canRaise) return clampRaise(ctx, Math.max(ctx.currentBet * 3, ctx.bb * 3));
+    if (s >= 8.5 || (s >= 6.5 && ctx.toCall <= ctx.bb)) return call;
+    return fold;
+  }
+  const eq = equity(ctx.hole, ctx.board, ctx.nOpp, BOT_ITERS.n, ctx.foeLevels);
+  const eq1 = Math.pow(eq, 1 / ctx.nOpp);
+  if (ctx.toCall === 0) {
+    if (ctx.canRaise && eq1 > 0.62 && r < 0.8) return potRaise(ctx, 0.6);
+    if (ctx.canRaise && ctx.wasAggressor && eq1 > 0.42 && r < 0.45) return potRaise(ctx, 0.5);
+    return { type: 'check' };
+  }
+  const odds = ctx.toCall / (ctx.pot + ctx.toCall);
+  if (eq1 > 0.86 && ctx.canRaise && r < 0.6) return potRaise(ctx, 0.9);
+  return eq > odds + 0.03 ? { type: 'call' } : { type: 'fold' };
+}
+
+/** Fritz, der Opportunist: klaut Blinds aus später Position und setzt, wenn alle schwach wirken (Check), gibt bei Widerstand ohne Chance auf. */
+function stealer(ctx: ActCtx, st: Style): Action {
+  const r = Math.random();
+  const call: Action = ctx.canCheck ? { type: 'check' } : { type: 'call' };
+  const fold: Action = ctx.canCheck ? { type: 'check' } : { type: 'fold' };
+  if (ctx.street === 0) {
+    const s = chen(ctx.hole);
+    const pos = position(ctx);
+    const open = ctx.currentBet <= ctx.bb;
+    if (open && pos > 0.55 && s >= 4.5 && r < 0.7 && ctx.canRaise) return clampRaise(ctx, ctx.bb * 2.5);
+    if (s >= 10 && ctx.canRaise) return clampRaise(ctx, ctx.currentBet * 3);
+    if (s >= 7.5 || (open && s >= 5)) return call;
+    return fold;
+  }
+  const eq = equity(ctx.hole, ctx.board, ctx.nOpp, BOT_ITERS.n, ctx.foeLevels);
+  const eq1 = Math.pow(eq, 1 / ctx.nOpp);
+  if (ctx.toCall === 0) {
+    const weak = ctx.nOpp <= 2 && r < 0.5;
+    if (ctx.canRaise && (eq1 > 0.55 || weak)) return potRaise(ctx, 0.55);
+    return { type: 'check' };
+  }
+  const odds = ctx.toCall / (ctx.pot + ctx.toCall);
+  if (eq1 > 0.8 && ctx.canRaise && r < 0.5) return potRaise(ctx, 0.8);
+  return eq > odds + 0.02 ? { type: 'call' } : { type: 'fold' };
+}
+
+/** Mia, die Schieberin: mit kurzem Stack nur Push-or-Fold, sonst straffes, ordentliches Spiel. */
+function shover(ctx: ActCtx, st: Style): Action {
+  const r = Math.random();
+  const call: Action = ctx.canCheck ? { type: 'check' } : { type: 'call' };
+  const fold: Action = ctx.canCheck ? { type: 'check' } : { type: 'fold' };
+  const m = (ctx.stack + ctx.bet) / ctx.bb;
+  const allIn: Action = ctx.canRaise ? { type: 'raise', to: ctx.maxTo } : { type: 'call' };
+  if (ctx.street === 0) {
+    const s = chen(ctx.hole) + position(ctx) * 2;
+    if (m < 12) return s >= 8 - (12 - m) * 0.25 ? allIn : fold;
+    if (s >= 11 && ctx.canRaise) return clampRaise(ctx, Math.max(ctx.currentBet * 3, ctx.bb * 3));
+    if (s >= 9 || (s >= 7 && ctx.toCall <= ctx.bb)) return call;
+    return fold;
+  }
+  const eq = equity(ctx.hole, ctx.board, ctx.nOpp, BOT_ITERS.n, ctx.foeLevels);
+  const eq1 = Math.pow(eq, 1 / ctx.nOpp);
+  if (m < 12) return eq1 > 0.5 ? allIn : ctx.toCall === 0 ? { type: 'check' } : eq > ctx.toCall / (ctx.pot + ctx.toCall) + 0.05 ? { type: 'call' } : { type: 'fold' };
+  if (ctx.toCall === 0) return ctx.canRaise && eq1 > 0.65 && r < 0.7 ? potRaise(ctx, 0.5) : { type: 'check' };
+  return eq > ctx.toCall / (ctx.pot + ctx.toCall) + 0.05 ? { type: 'call' } : { type: 'fold' };
+}
+
 /** Weitere Spielertypen mit eigener Strategie; zusammen mit STYLES der Pool für jedes neue Spiel. */
 export const EXTRA_STYLES: Style[] = [
   { name: 'Bruno', desc: 'greift an', loose: 2.5, agg: 0.9, bluff: 0.3, brain: lag },
   { name: 'Luna', desc: 'nur Premiumhände', loose: -1, agg: 0.6, bluff: 0, brain: rock },
-  { name: 'Kalle', desc: 'hat einen sitzen', loose: 4, agg: 0.7, bluff: 0.3, brain: drunk, bedtime: 'geht ins Bett' },
+  { name: 'Vera', desc: 'rechnet Odds', loose: 0.5, agg: 0.6, bluff: 0.05, brain: calc },
+  { name: 'Fritz', desc: 'klaut Blinds', loose: 1.5, agg: 0.7, bluff: 0.25, brain: stealer },
+  { name: 'Mia', desc: 'schiebt kurz', loose: 0, agg: 0.6, bluff: 0.05, brain: shover },
+  { name: 'Hans', desc: 'ausgewogen', loose: 1, agg: 0.65, bluff: 0.12 },
   { name: 'Ines', desc: 'legt Fallen', loose: 1, agg: 0.3, bluff: 0.05, brain: trapper },
 ];
 
