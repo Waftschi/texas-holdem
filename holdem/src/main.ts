@@ -45,6 +45,7 @@ let raiseOpenedAt = 0;
 const guarded = (since: number): boolean => performance.now() - since < TAP_GUARD_MS;
 const seen = new Set<string>();
 let rec: HandRec = newRec();
+let pending: (() => void) | null = null; // speichert die laufende Hand, falls sie abgebrochen wird
 
 function newRec(): HandRec {
   return { vpip: 0, pfr: 0, bets: 0, calls: 0, faced: 0, foldedTo: 0, badCalls: 0, badFolds: 0, sd: 0, win: 0, net: 0 };
@@ -340,6 +341,8 @@ function waitNext(): Promise<void> {
 }
 
 async function run(): Promise<void> {
+  pending?.(); // laufende Hand des alten Spiels noch festhalten
+  pending = null;
   const id = ++runId;
   const g = new Game(
     {
@@ -363,15 +366,28 @@ async function run(): Promise<void> {
     rec.mode = g.mode;
     const before = g.players[0].stack;
     const buyinsBefore = g.players[0].buyins;
+    const mine = rec;
+    let saved = false;
+    const save = (): void => {
+      if (saved) return;
+      saved = true;
+      const me = g.players[0];
+      mine.chips = me.stack - before - (me.buyins - buyinsBefore) * START_STACK; // ein Rebuy ist kein Gewinn
+      mine.net = mine.chips / g.bb;
+      mine.win = mine.chips > 0 ? 1 : 0;
+      mine.sd = g.showdownDone && !me.folded ? 1 : 0;
+      addHand(mine);
+      saveLog(g.history);
+    };
+    // Wird die Hand abgebrochen (neues Spiel, Tab geschlossen), zählt sie trotzdem mit dem bisherigen Ergebnis.
+    pending = save;
     await g.playHand();
-    if (id !== runId) return;
-    const me = g.players[0];
-    rec.chips = me.stack - before - (me.buyins - buyinsBefore) * START_STACK; // ein Rebuy ist kein Gewinn
-    rec.net = rec.chips / g.bb;
-    rec.win = rec.chips > 0 ? 1 : 0;
-    rec.sd = g.showdownDone && !me.folded ? 1 : 0;
-    addHand(rec);
-    saveLog(g.history);
+    pending = null;
+    if (id !== runId) {
+      save();
+      return;
+    }
+    save();
     if (!$('stats').hidden) showStats(); // offene Statistik sofort aktualisieren
     if (g.over === 'win' || g.over === 'lose') {
       // Winner takes all: der Sieger bekommt den ganzen Preispool, alle anderen verlieren ihren Buy-in.
@@ -652,3 +668,9 @@ $<HTMLInputElement>('eqToggle').addEventListener('change', (e) => {
 });
 
 run();
+
+// Tab schließen, neu laden oder in den Hintergrund: die laufende Hand nicht verlieren.
+window.addEventListener('pagehide', () => pending?.());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') pending?.();
+});
