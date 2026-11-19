@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(process.argv[2], 'utf8');
 const dom = new JSDOM(html, {
+  url: 'http://localhost/',
   runScripts: 'dangerously',
   pretendToBeVisual: true,
   beforeParse(w) {
@@ -75,6 +76,7 @@ while (Date.now() - t0 < 90000 && (turns < 14 || hands < 2)) {
   }
 }
 console.log('Hände gespielt:', hands, '| Züge:', turns);
+console.log('Gespeicherte Hände:', JSON.parse(w.localStorage.getItem('holdem.stats.v1') || '[]').length);
 console.log('Sitze:', d.querySelectorAll('#opps .seat').length, '| Fehler:', errors);
 w.close();
 process.exit(errors.length || turns < 5 ? 1 : 0);

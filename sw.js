@@ -1,6 +1,6 @@
 // Offline-Cache: Seite und Icons werden beim ersten Besuch gespeichert.
 // Online wird immer die neueste Version geladen, offline die gespeicherte.
-const CACHE = 'holdem-1.24-f1662ee-mwaxbqck'; // der Build setzt hier die Version ein (holdem/build-pwa.mjs)
+const CACHE = 'holdem-1.26-522cdf4'; // der Build setzt hier die Version ein (holdem/build-pwa.mjs)
 const FILES = ['./', './index.html','./manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
